@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.company</groupId>
+    <artifactId>rest-assured-test-automation</artifactId>
+    <version>1.0.0</version>
+    <name>Rest Assured Test Automation for MuleSoft APIs</name>
+    <description>Enterprise-grade API testing framework for MuleSoft APIs using Rest Assured</description>
+    <properties>
+        <java.version>11</java.version>
+        <rest-assured.version>5.3.0</rest-assured.version>
+        <junit.jupiter.version>5.10.0</junit.jupiter.version>
+        <hamcrest.version>2.2</hamcrest.version>
+        <allure-junit5.version>2.25.0</allure-junit5.version>
+        <allure-maven.version>2.13.8</allure-maven.version>
+        <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
+        <maven-failsafe-plugin.version>3.1.2</maven-failsafe-plugin.version>
+    </properties>
+
+    <dependencies>
+        <!-- Rest Assured -->
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>${rest-assured.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JUnit 5 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Hamcrest -->
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
+            <version>${hamcrest.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Allure JUnit5 -->
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-junit5</artifactId>
+            <version>${allure-junit5.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- JSON Schema Validator (Rest Assured module) -->
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>${rest-assured.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- WireMock standalone for ResponseTemplateTransformer -->
+        <dependency>
+            <groupId>com.github.tomakehurst</groupId>
+            <artifactId>wiremock-jre8-standalone</artifactId>
+            <version>2.35.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Maven Compiler Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Surefire Plugin (for unit tests) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+                <configuration>
+                    <testFailureIgnore>false</testFailureIgnore>
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                    </includes>
+                    <properties>
+                        <configurationParameters>junit.jupiter.extensions.autodetection.enabled=true</configurationParameters>
+                    </properties>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Failsafe Plugin (for integration tests) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>${maven-failsafe-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <testFailureIgnore>false</testFailureIgnore>
+                    <includes>
+                        <include>**/*IT.java</include>
+                        <include>**/*ITCase.java</include>
+                    </includes>
+                    <properties>
+                        <configurationParameters>junit.jupiter.extensions.autodetection.enabled=true</configurationParameters>
+                    </properties>
+                </configuration>
+            </plugin>
+
+            <!-- Allure Maven Plugin -->
+            <plugin>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-maven</artifactId>
+                <version>${allure-maven.version}</version>
+                <configuration>
+                    <resultsDirectory>target/allure-results</resultsDirectory>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- Local Environment -->
+        <profile>
+            <id>local</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <env.url>http://localhost:8081</env.url>
+                <env.name>local</env.name>
+            </properties>
+        </profile>
+
+        <!-- Development Environment -->
+        <profile>
+            <id>dev</id>
+            <properties>
+                <env.url>https://dev-api.company.com/customers</env.url>
+                <env.name>dev</env.name>
+            </properties>
+        </profile>
+
+        <!-- QA Environment -->
+        <profile>
+            <id>qa</id>
+            <properties>
+                <env.url>https://qa-api.company.com/customers</env.url>
+                <env.name>qa</env.name>
+            </properties>
+        </profile>
+
+        <!-- UAT Environment -->
+        <profile>
+            <id>uat</id>
+            <properties>
+                <env.url>https://uat-api.company.com/customers</env.url>
+                <env.name>uat</env.name>
+            </properties>
+        </profile>
+    </profiles>
+</project>
