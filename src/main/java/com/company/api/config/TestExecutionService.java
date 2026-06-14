@@ -95,6 +95,7 @@ public class TestExecutionService {
                 result.put("endpoint", endpoint);
                 result.put("status", "ERROR");
                 result.put("error", e.getMessage());
+                result.put("confidenceScore", 0.0);
                 results.add(result);
             }
         }

@@ -6,6 +6,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ApiConfigRepository extends JpaRepository<ApiEntity, Long> {
-    List<ApiEntity> findByNameContainingIgnoreCase(String name);
+public interface TestResultRepository extends JpaRepository<TestResultEntity, Long> {
+    List<TestResultEntity> findTop50ByOrderByIdDesc();
 }
