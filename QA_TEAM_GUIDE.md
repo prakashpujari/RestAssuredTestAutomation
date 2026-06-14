@@ -98,13 +98,34 @@ The dashboard shows **complete test visibility**:
 
 | Feature | What You See |
 |---------|-------------|
-| **API Names** | JSONPlaceholder, HTTPBin, etc. |
+| **API Names** | JSONPlaceholder, HTTPBin, your APIs |
 | **Endpoints** | GET /posts, POST /users, etc. |
-| **Status** | ✅ PASS / ❌ FAIL for each test |
+| **Status** | ✅ PASS / ❌ FAIL / ⚠ ERROR |
 | **Assertions** | Number of validations per test |
-| **Response** | Sample response data |
-| **Duration** | Time taken per test |
+| **Response** | Actual API response data |
+| **Duration** | Time taken per test (ms) |
 | **Accuracy** | Overall pass rate percentage |
+| **Confidence** | 0-1 score (response time, status, content) |
+
+### 🎯 Confidence Score Calculation
+
+Each test gets a confidence score (0.0 - 1.0):
+
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| **Response Time** | 70% | Faster = higher score |
+| **Status Code** | 20% | 2xx = high, 4xx = medium, 5xx = low |
+| **Content** | 10% | Has response body = bonus points |
+
+### 🔐 Authentication Configuration
+
+When adding APIs via UI, configure:
+
+1. **None** - Public APIs
+2. **Basic Auth** - client_id + client_secret
+3. **Bearer Token** - JWT/OAuth token
+4. **API Key** - Custom header (e.g., X-API-Key)
+5. **OAuth2** - Token endpoint for auth
 
 ---
 
