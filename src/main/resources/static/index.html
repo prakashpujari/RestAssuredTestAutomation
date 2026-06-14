@@ -54,7 +54,8 @@
     </div>
 
     <script>
-        const API_BASE = '/api/test-config';
+        // API base URL - will work on port 8085
+const API_BASE = window.location.origin + '/api/test-config';
 
         async function loadApis() {
             try {

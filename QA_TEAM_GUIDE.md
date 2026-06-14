@@ -274,7 +274,8 @@ To trigger manually:
 | Run specific API | `mvn test -Dtest=PublicApiTest` |
 | Run with QA config | `mvn test -Dtest.env=qa` |
 | Parallel execution | `mvn test -Dparallel=true -DthreadCount=20` |
-| View reports | `mvn allure:serve` |
+| Start UI dashboard | `mvn spring-boot:run` |
+| Open dashboard | `http://localhost:8085` |
 | Clean and rebuild | `mvn clean test` |
 
 ---
