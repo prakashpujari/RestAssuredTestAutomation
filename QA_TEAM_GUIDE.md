@@ -1,6 +1,6 @@
 # 🧪 QA Team Guide: API Testing Automation Framework
 
-## Model: Claude Opus 4.8 (Powered by Claude)
+## Model: Claude Opus 4.8
 
 ---
 
@@ -76,11 +76,14 @@ mvn test -Dtest=PublicApiTest#listPosts
 ### STEP 4: Check Results
 
 ```bash
-# View beautiful report
-mvn allure:report
+# View test results in target folder
+# On Windows:
+start target/surefire-reports/index.html
 
-# View raw test results  
+# On Mac/Linux:
 open target/surefire-reports/
+
+# Or check console output for test summary
 ```
 
 ---
