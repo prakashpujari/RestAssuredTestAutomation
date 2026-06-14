@@ -27,7 +27,7 @@
         .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
         .form-group { flex: 1; min-width: 200px; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
-        .modal-content { background: var(--bg-secondary); margin: 50px auto; padding: 20px; border-radius: 10px; max-width: 600px; }
+        .modal-content { background: var(--bg-secondary); margin: 50px auto; padding: 20px; border-radius: 10px; max-width: 600px; max-height: 80vh; overflow-y: auto; }
         .confidence-badge { background: var(--bg-accent); padding: 2px 8px; border-radius: 12px; font-size: 0.8em; }
     </style>
 </head>
@@ -65,10 +65,22 @@
     <div class="modal" id="addApiModal">
         <div class="modal-content">
             <h2 style="color: var(--accent);">➕ Add New API</h2>
-            <div class="form-group"><label>API Name *</label><input type="text" id="apiName" placeholder="jsonplaceholder" required></div>
+            <div class="form-group"><label>API Name *</label><input type="text" id="apiName" placeholder="my-api" required></div>
             <div class="form-group"><label>Base URL *</label><input type="text" id="baseUrl" placeholder="https://jsonplaceholder.typicode.com"></div>
             <div class="form-group"><label>Base Path</label><input type="text" id="basePath" placeholder="/api/v1" value="/"></div>
-            <div class="form-group"><label>Test Endpoints *</label><input type="text" id="endpoints" placeholder="/posts, /users" value="/posts"></div>
+
+            <h3 style="color: var(--accent); margin: 15px 0 10px;">📍 Endpoints</h3>
+            <div id="endpointsContainer">
+                <div class="endpoint-row form-row">
+                    <select id="method1" onchange="toggleBodyField(1)">
+                        <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option>
+                    </select>
+                    <input type="text" id="path1" placeholder="/endpoint/path" value="/posts">
+                </div>
+            </div>
+            <button onclick="addEndpointRow()" style="background: #4CAF50;">➕ Add Endpoint</button>
+
+            <h3 style="color: var(--accent); margin: 15px 0 10px;">🔐 Authentication</h3>
             <div class="form-group"><label>Auth Type</label>
                 <select id="authType" onchange="document.getElementById('authFields').style.display = this.value !== 'none' ? 'block' : 'none'">
                     <option value="none">None</option><option value="basic">Basic Auth</option><option value="bearer">Bearer Token</option><option value="apikey">API Key</option>
@@ -84,6 +96,7 @@
                     <div class="form-group"><label>API Key Value</label><input type="text" id="apiKeyValue"></div>
                 </div>
             </div>
+
             <div style="margin-top: 20px; text-align: right;">
                 <button onclick="saveApi()" style="background: #4CAF50;">💾 Save & Run Tests</button>
                 <button onclick="closeModal()" style="background: #f44336;">❌ Cancel</button>
@@ -94,6 +107,7 @@
     <script>
         let savedApis = JSON.parse(localStorage.getItem('testApis') || '[]');
         let testResults = [];
+        let endpointCount = 1;
 
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
@@ -103,10 +117,35 @@
 
         function addNewApi() {
             document.getElementById('addApiModal').style.display = 'block';
+            endpointCount = 1;
         }
 
         function closeModal() {
             document.getElementById('addApiModal').style.display = 'none';
+        }
+
+        function addEndpointRow() {
+            endpointCount++;
+            const div = document.createElement('div');
+            div.className = 'endpoint-row form-row';
+            div.innerHTML = `
+                <select id="method${endpointCount}" onchange="toggleBodyField(${endpointCount})">
+                    <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option>
+                </select>
+                <input type="text" id="path${endpointCount}" placeholder="/endpoint/path" value="/">
+                <textarea id="body${endpointCount}" placeholder='{"key":"value"}' style="width:100%;display:none;margin-top:5px;"></textarea>
+            `;
+            document.getElementById('endpointsContainer').appendChild(div);
+        }
+
+        function toggleBodyField(idx) {
+            const method = document.getElementById(`method${idx}`).value;
+            const bodyField = document.getElementById(`body${idx}`);
+            if (method === 'POST' || method === 'PUT') {
+                bodyField.style.display = 'block';
+            } else {
+                bodyField.style.display = 'none';
+            }
         }
 
         async function runTests() {
@@ -115,19 +154,31 @@
 
             const allTests = [];
             for (const api of savedApis) {
-                const endpoints = api.endpoints.split(',').map(e => e.trim());
-                for (const ep of endpoints) {
-                    try {
-                        const response = await fetch('/api/test-config/test-endpoint', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ url: api.baseUrl + api.basePath + ep })
-                        });
-                        const data = await response.json();
-                        allTests.push({ ...data, api: api.name, endpoint: ep });
-                    } catch (e) {
-                        allTests.push({ api: api.name, endpoint: ep, status: 'ERROR', error: e.message });
-                    }
+                const endpoints = api.endpoints ? api.endpoints.split(',').map(e => e.trim()) : [];
+                const methods = api.methods ? api.methods.split(',') : [];
+
+                endpoints.forEach((ep, idx) => {
+                    const method = methods[idx] || 'GET';
+                    const body = api.bodies ? api.bodies[idx] : null;
+
+                    allTests.push({ api: api.name, method, endpoint: ep, body, url: api.baseUrl + api.basePath + ep });
+                });
+            }
+
+            // Actually test endpoints
+            for (let i = 0; i < allTests.length; i++) {
+                const t = allTests[i];
+                try {
+                    const response = await fetch('/api/test-config/test-endpoint', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: t.url, method: t.method, body: t.body })
+                    });
+                    const data = await response.json();
+                    allTests[i] = { ...t, ...data, status: data.status || (data.statusCode >= 200 && data.statusCode < 300 ? 'PASS' : 'FAIL') };
+                } catch (e) {
+                    allTests[i].status = 'ERROR';
+                    allTests[i].error = e.message;
                 }
             }
 
@@ -141,12 +192,33 @@
                 baseUrl: document.getElementById('baseUrl').value.trim(),
                 basePath: document.getElementById('basePath').value.trim(),
                 authType: document.getElementById('authType').value,
-                endpoints: document.getElementById('endpoints').value.trim()
+                endpoints: [],
+                methods: [],
+                bodies: []
             };
 
             if (!api.name || !api.baseUrl) {
                 alert('Enter API name and URL');
                 return;
+            }
+
+            // Collect endpoints
+            for (let i = 1; i <= endpointCount; i++) {
+                const method = document.getElementById(`method${i}`)?.value;
+                const path = document.getElementById(`path${i}`)?.value?.trim();
+                const body = document.getElementById(`body${i}`)?.value?.trim();
+
+                if (path && path !== '/') {
+                    api.endpoints.push(path);
+                    api.methods.push(method);
+                    api.bodies.push(body || '');
+                }
+            }
+
+            if (api.endpoints.length === 0) {
+                api.endpoints = ['/'];
+                api.methods = ['GET'];
+                api.bodies = [''];
             }
 
             savedApis.push(api);
@@ -157,25 +229,7 @@
             document.getElementById('progressBar').style.width = '50%';
             document.getElementById('apiResults').innerHTML = '<p style="color: var(--accent);">⏳ Testing your API...</p>';
 
-            const allTests = [];
-            const endpoints = api.endpoints.split(',').map(e => e.trim());
-
-            for (const ep of endpoints) {
-                try {
-                    const response = await fetch('/api/test-config/test-endpoint', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: api.baseUrl + api.basePath + ep })
-                    });
-                    const data = await response.json();
-                    allTests.push({ ...data, api: api.name, endpoint: ep });
-                } catch (e) {
-                    allTests.push({ api: api.name, endpoint: ep, status: 'ERROR', error: e.message });
-                }
-            }
-
-            testResults = allTests;
-            renderResults();
+            await runTests();
         }
 
         function renderResults() {
@@ -204,12 +258,12 @@
 
             let html = '';
             for (const [apiName, tests] of Object.entries(apisGrouped)) {
-                html += `<div class="api-item"><div class="api-name">${apiName} (${tests.length} tests)</div>`;
+                html += `<div class="api-item"><div class="api-name">${apiName}</div>`;
                 tests.forEach(t => {
                     const statusClass = t.status === 'PASS' ? 'test-pass' : t.status === 'FAIL' ? 'test-fail' : 'test-error';
                     html += `<div class="test-item" style="display: flex; flex-direction: column;">
                         <div style="display: flex; justify-content: space-between;">
-                            <span><strong>GET</strong> ${t.endpoint}</span>
+                            <span><strong>${t.method}</strong> ${t.endpoint} - ${t.name || ''}</span>
                             <span class="${statusClass}">${t.status}</span>
                         </div>
                         <div style="font-size: 0.8em; color: var(--text-secondary); margin-top: 5px;">
@@ -232,7 +286,6 @@
         // Load saved data on start
         function loadSavedData() {
             savedApis = JSON.parse(localStorage.getItem('testApis') || '[]');
-            // Auto-run tests on load if APIs exist
             if (savedApis.length > 0) {
                 runTests();
             }

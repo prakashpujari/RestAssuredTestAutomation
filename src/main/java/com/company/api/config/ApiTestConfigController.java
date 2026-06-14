@@ -188,16 +188,38 @@ public class ApiTestConfigController {
     @PostMapping("/test-endpoint")
     public ResponseEntity<Map<String, Object>> testEndpoint(@RequestBody Map<String, Object> request) {
         String url = (String) request.get("url");
+        String method = (String) request.getOrDefault("method", "GET");
+        String body = (String) request.get("body");
 
         Map<String, Object> result = new HashMap<>();
 
         try {
             long start = System.currentTimeMillis();
-            var response = io.restassured.RestAssured.given().when().get(url);
+            var requestSpec = io.restassured.RestAssured.given();
+
+            // Add body if provided
+            if (body != null && !body.isEmpty()) {
+                requestSpec.body(body).contentType("application/json");
+            }
+
+            var response;
+            switch (method.toUpperCase()) {
+                case "POST":
+                    response = requestSpec.when().post(url);
+                    break;
+                case "PUT":
+                    response = requestSpec.when().put(url);
+                    break;
+                case "DELETE":
+                    response = requestSpec.when().delete(url);
+                    break;
+                default:
+                    response = requestSpec.when().get(url);
+            }
 
             long duration = System.currentTimeMillis() - start;
             int statusCode = response.getStatusCode();
-            String body = response.getBody().asString();
+            String responseBody = response.getBody().asString();
 
             // Status is PASS only for 2xx codes
             boolean success = statusCode >= 200 && statusCode < 300;
@@ -205,13 +227,13 @@ public class ApiTestConfigController {
             // Confidence score
             double timeScore = Math.max(0, 1 - (duration / 5000.0)) * 0.7;
             double statusScore = success ? 0.2 : 0.1;
-            double contentScore = (body != null && !body.isEmpty()) ? 0.1 : 0;
+            double contentScore = (responseBody != null && !responseBody.isEmpty()) ? 0.1 : 0;
             double confidenceScore = Math.round((timeScore + statusScore + contentScore) * 1000) / 1000.0;
 
             result.put("success", success);
             result.put("statusCode", statusCode);
             result.put("duration", duration + "ms");
-            result.put("response", body.length() > 150 ? body.substring(0, 150) + "..." : body);
+            result.put("response", responseBody.length() > 150 ? responseBody.substring(0, 150) + "..." : responseBody);
             result.put("confidenceScore", confidenceScore);
             result.put("status", success ? "PASS" : "FAIL");
 
