@@ -51,14 +51,6 @@ public class ApiTestConfigController {
     }
 
     /**
-     * Get all available API endpoints for testing.
-     */
-    @GetMapping("/apis")
-    public ResponseEntity<List<Map<String, Object>>> getAllApis() {
-        return ResponseEntity.ok(loader.getApiDefinitions());
-    }
-
-    /**
      * Get test configuration for a specific API.
      */
     @GetMapping("/apis/{apiName}")
