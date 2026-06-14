@@ -88,8 +88,23 @@ mvn test -Dtest=PublicApiTest#listPosts
 # Spring Boot app runs on port 8085 (to avoid conflicts)
 mvn spring-boot:run
 
-# Then open: http://localhost:8085
+# Open in browser
+http://localhost:8085/dashboard.html
 ```
+
+### 📊 Dashboard Features
+
+The dashboard shows **complete test visibility**:
+
+| Feature | What You See |
+|---------|-------------|
+| **API Names** | JSONPlaceholder, HTTPBin, etc. |
+| **Endpoints** | GET /posts, POST /users, etc. |
+| **Status** | ✅ PASS / ❌ FAIL for each test |
+| **Assertions** | Number of validations per test |
+| **Response** | Sample response data |
+| **Duration** | Time taken per test |
+| **Accuracy** | Overall pass rate percentage |
 
 ---
 
