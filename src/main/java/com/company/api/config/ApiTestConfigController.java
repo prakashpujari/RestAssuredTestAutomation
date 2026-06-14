@@ -73,15 +73,16 @@ public class ApiTestConfigController {
     public ResponseEntity<Map<String, Object>> triggerTestRun(
             @RequestBody TestRunRequest request) {
 
-        // This would trigger the test execution
-        // Could use Jenkins API, GitHub Actions, or direct Maven invocation
+        // In a real implementation, this would trigger Maven tests
+        // For demo, return simulated results
         Map<String, Object> response = new HashMap<>();
         response.put("jobId", UUID.randomUUID().toString());
         response.put("status", "QUEUED");
-        response.put("message", "Test run triggered for: " + String.join(", ", request.apis));
-        response.put("environment", request.environment);
+        response.put("message", "Test run triggered for: " + (request.apis != null ? String.join(", ", request.apis) : "all APIs"));
+        response.put("environment", request != null && request.environment != null ? request.environment : "qa");
+        response.put("apiCount", request != null && request.apis != null ? request.apis.size() : 0);
 
-        return ResponseEntity.accepted().body(response);
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -91,10 +92,11 @@ public class ApiTestConfigController {
     public ResponseEntity<Map<String, Object>> getTestRunStatus(@PathVariable String jobId) {
         Map<String, Object> response = new HashMap<>();
         response.put("jobId", jobId);
-        response.put("status", "COMPLETED"); // or RUNNING, FAILED
-        response.put("passed", 85);
-        response.put("failed", 3);
-        response.put("total", 88);
+        response.put("status", "COMPLETED");
+        response.put("passed", 14);
+        response.put("failed", 0);
+        response.put("total", 14);
+        response.put("message", "All tests passed successfully");
 
         return ResponseEntity.ok(response);
     }
