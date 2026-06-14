@@ -182,6 +182,48 @@ public class ApiTestConfigController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Test a single endpoint and return real results.
+     */
+    @PostMapping("/test-endpoint")
+    public ResponseEntity<Map<String, Object>> testEndpoint(@RequestBody Map<String, Object> request) {
+        String url = (String) request.get("url");
+        String method = (String) request.getOrDefault("method", "GET");
+
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            long start = System.currentTimeMillis();
+            var response = io.restassured.RestAssured.given()
+                .when().get(url);
+
+            long duration = System.currentTimeMillis() - start;
+            int statusCode = response.getStatusCode();
+            String body = response.getBody().asString();
+
+            boolean success = statusCode >= 200 && statusCode < 300;
+
+            // Confidence score
+            double timeScore = Math.max(0, 1 - (duration / 5000.0)) * 0.7;
+            double statusScore = (statusCode >= 200 && statusCode < 300) ? 0.2 : 0.1;
+            double contentScore = (body != null && !body.isEmpty()) ? 0.1 : 0;
+            double confidenceScore = Math.round((timeScore + statusScore + contentScore) * 1000) / 1000.0;
+
+            result.put("success", success);
+            result.put("statusCode", statusCode);
+            result.put("duration", duration + "ms");
+            result.put("response", body.length() > 200 ? body.substring(0, 200) + "..." : body);
+            result.put("confidenceScore", confidenceScore);
+
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", e.getMessage());
+            result.put("confidenceScore", 0.0);
+        }
+
+        return ResponseEntity.ok(result);
+    }
+
     // DTO for test run requests
     public static class TestRunRequest {
         public List<String> apis;
