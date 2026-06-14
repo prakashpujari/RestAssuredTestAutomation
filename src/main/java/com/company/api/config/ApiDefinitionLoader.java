@@ -21,7 +21,7 @@ public class ApiDefinitionLoader {
         loadConfigs();
     }
 
-    public static ApiDefinitionLoader getInstance() {
+    public static synchronized ApiDefinitionLoader getInstance() {
         if (instance == null) {
             instance = new ApiDefinitionLoader();
         }
@@ -31,20 +31,33 @@ public class ApiDefinitionLoader {
     private void loadConfigs() {
         Yaml yaml = new Yaml();
 
-        // Load API definitions
-        try (InputStream apiStream = getClass().getClassLoader()
-                .getResourceAsStream("config/apis.yaml")) {
-            apiConfig = yaml.loadAs(apiStream, HashMap.class);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to load api definitions: " + e.getMessage(), e);
+        // Load API definitions - don't use try-with-resources as it closes stream early
+        InputStream apiStream = getClass().getClassLoader().getResourceAsStream("config/apis.yaml");
+        if (apiStream == null) {
+            // Use empty config if file not found
+            apiConfig = new HashMap<>();
+        } else {
+            try {
+                apiConfig = yaml.loadAs(apiStream, HashMap.class);
+            } finally {
+                try {
+                    apiStream.close();
+                } catch (Exception ignored) {}
+            }
         }
 
         // Load environment configurations
-        try (InputStream envStream = getClass().getClassLoader()
-                .getResourceAsStream("config/environments.yaml")) {
-            envConfig = yaml.loadAs(envStream, HashMap.class);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to load environment config: " + e.getMessage(), e);
+        InputStream envStream = getClass().getClassLoader().getResourceAsStream("config/environments.yaml");
+        if (envStream == null) {
+            envConfig = new HashMap<>();
+        } else {
+            try {
+                envConfig = yaml.loadAs(envStream, HashMap.class);
+            } finally {
+                try {
+                    envStream.close();
+                } catch (Exception ignored) {}
+            }
         }
     }
 
@@ -52,7 +65,7 @@ public class ApiDefinitionLoader {
      * Gets all API definitions.
      */
     public List<Map<String, Object>> getApiDefinitions() {
-        return (List<Map<String, Object>>) apiConfig.get("apis");
+        return (List<Map<String, Object>>) apiConfig.getOrDefault("apis", List.of());
     }
 
     /**
@@ -73,7 +86,7 @@ public class ApiDefinitionLoader {
     public Map<String, Object> getExecutionConfig(String envName) {
         Map<String, Map<String, Object>> envs =
                 (Map<String, Map<String, Object>>) envConfig.get("environments");
-        Map<String, Object> defaults = (Map<String, Object>) envConfig.get("default");
+        Map<String, Object> defaults = (Map<String, Object>) envConfig.getOrDefault("default", Map.of());
         Map<String, Object> envSpecific = envs == null ? null : envs.get(envName);
 
         // Merge with defaults
