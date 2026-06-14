@@ -42,7 +42,6 @@ public class ApiTestConfigController {
      */
     @GetMapping("/environments")
     public ResponseEntity<List<String>> getEnvironments() {
-        Map<String, Object> envs = (Map<String, Object>) loader.getEnvironmentConfig("local");
         // This would return from the environment config
         List<String> environments = Arrays.asList("local", "dev", "qa", "uat", "prod");
         return ResponseEntity.ok(environments);

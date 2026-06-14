@@ -1,0 +1,24 @@
+# Created at 2026-06-14T12:14:06.591
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '#'.
+
+# Created at 2026-06-14T12:14:06.595
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '# There is insufficient memory for the Java Runtime Environment to continue.'.
+
+# Created at 2026-06-14T12:14:06.597
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '# Native memory allocation (malloc) failed to allocate 1846432 bytes for Chunk::new'.
+
+# Created at 2026-06-14T12:14:06.599
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '# An error report file with more information is saved as:'.
+
+# Created at 2026-06-14T12:14:06.673
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '# C:\pp\GitHub\RestAssuredTestAutomation\RestAssuredTestAutomation\hs_err_pid25364.log'.
+
+# Created at 2026-06-14T12:14:06.675
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '#'.
+
+# Created at 2026-06-14T12:14:06.677
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '# Compiler replay data is saved as:'.
+
+# Created at 2026-06-14T12:14:06.732
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '# C:\pp\GitHub\RestAssuredTestAutomation\RestAssuredTestAutomation\replay_pid25364.log'.
+

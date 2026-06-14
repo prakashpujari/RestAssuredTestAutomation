@@ -1,0 +1,12 @@
+{
+  "id": "example-get",
+  "name": "Simple GET test",
+  "method": "GET",
+  "path": "/hello",
+  "headers": {},
+  "queryParams": {},
+  "body": null,
+  "expectedStatus": 200,
+  "expectedJson": { "message": "Hello, World!" },
+  "environment": "local"
+}

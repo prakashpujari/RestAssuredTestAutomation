@@ -1,0 +1,36 @@
+# Environment configurations
+# Can be overridden via CI/CD secrets or UI
+
+default:
+  parallel: true
+  threads: 10
+  retryCount: 3
+  retryDelayMs: 1000
+  timeoutMs: 30000
+
+environments:
+  local:
+    baseUrl: http://localhost:8089
+    parallel: false
+    threads: 1
+
+  dev:
+    baseUrl: https://dev-api.company.com
+    parallel: true
+    threads: 5
+
+  qa:
+    baseUrl: https://qa-api.company.com
+    parallel: true
+    threads: 10
+
+  uat:
+    baseUrl: https://uat-api.company.com
+    parallel: true
+    threads: 10
+
+  prod:
+    baseUrl: https://api.company.com
+    parallel: true
+    threads: 20
+    retryCount: 2  # Lower retry count in prod

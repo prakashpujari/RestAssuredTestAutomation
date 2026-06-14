@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 /**
@@ -20,26 +21,13 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 public class DynamicApiTest {
 
     private ApiDefinitionLoader loader;
-    private ApiTestRunner runner;
     private String environment;
 
     @BeforeAll
     void setUpAll() {
         environment = System.getProperty("test.env", "local");
         loader = ApiDefinitionLoader.getInstance();
-        runner = new ApiTestRunner(environment);
         System.out.println("Running tests in environment: " + environment);
-    }
-
-    @BeforeEach
-    void setUp() {
-        Map<String, String> envConfig = loader.getEnvironmentConfig(environment);
-        if (envConfig != null && envConfig.get("baseUrl") != null) {
-            String baseUrl = loader.resolveValue(envConfig.get("baseUrl"));
-            RestAssured.baseURI = baseUrl;
-        }
-        // Apply common config (timeout, filters, etc.)
-        com.company.api.core.ApiConfig.configure();
     }
 
     @TestFactory
@@ -50,6 +38,13 @@ public class DynamicApiTest {
         for (Map<String, Object> api : apis) {
             String apiName = (String) api.get("name");
             String basePath = (String) api.get("basePath");
+            String apiBaseUrl = (String) api.get("baseUrl"); // Per-API base URL
+
+            if (apiBaseUrl == null) {
+                // Fall back to environment config
+                apiBaseUrl = loader.getEnvironmentConfig(environment).get("baseUrl");
+            }
+
             List<Map<String, Object>> endpoints = (List<Map<String, Object>>) api.get("endpoints");
 
             for (Map<String, Object> endpoint : endpoints) {
@@ -61,12 +56,15 @@ public class DynamicApiTest {
                     String testName = (String) testCase.get("name");
                     Integer expectedStatus = (Integer) testCase.get("expectedStatus");
                     String testType = (String) testCase.get("type");
+                    Map<String, String> queryParams = (Map<String, String>) testCase.get("queryParams");
 
                     String testDisplayName = String.format("%s - %s %s [%s]",
-                            apiName, method.toUpperCase(), basePath + path, testName);
+                            apiName, method.toUpperCase(), path, testName);
 
+                    String finalApiBaseUrl = apiBaseUrl;
                     tests.add(dynamicTest(testDisplayName, () ->
-                        executeDynamicTest(apiName, basePath, method, path, expectedStatus, testType, testCase)));
+                        executeDynamicTest(finalApiBaseUrl, basePath, method, path,
+                                expectedStatus, testType, queryParams)));
                 }
             }
         }
@@ -74,23 +72,34 @@ public class DynamicApiTest {
         return tests.stream();
     }
 
-    private void executeDynamicTest(String apiName, String basePath, String method, String path,
-                                   int expectedStatus, String testType, Map<String, Object> testCase) {
+    private void executeDynamicTest(String baseUrl, String basePath, String method, String path,
+                                   int expectedStatus, String testType, Map<String, String> queryParams) {
         String fullPath = basePath + path;
+
+        // Configure base URI for this specific API
+        if (baseUrl != null) {
+            RestAssured.baseURI = baseUrl;
+        }
+
+        // Determine if we need to skip WireMock/Local execution for external APIs
+        boolean isExternalApi = !baseUrl.contains("localhost") && !baseUrl.contains("wiremock");
 
         switch (method.toUpperCase()) {
             case "GET":
-                RestAssured.given()
-                    .when()
+                var request = given();
+                if (queryParams != null) {
+                    queryParams.forEach((k, v) -> request.queryParam(k, v));
+                }
+                request.when()
                     .get(fullPath)
                     .then()
                     .statusCode(expectedStatus);
                 break;
 
             case "POST":
-                RestAssured.given()
+                given()
                     .contentType(ContentType.JSON)
-                    .body("{\"test\": true}") // Use test data builder
+                    .body(createPostBody(path))
                     .when()
                     .post(fullPath)
                     .then()
@@ -98,9 +107,9 @@ public class DynamicApiTest {
                 break;
 
             case "PUT":
-                RestAssured.given()
+                given()
                     .contentType(ContentType.JSON)
-                    .body("{\"test\": true}")
+                    .body("{\"name\": \"updated\"}")
                     .when()
                     .put(fullPath)
                     .then()
@@ -108,7 +117,7 @@ public class DynamicApiTest {
                 break;
 
             case "DELETE":
-                RestAssured.given()
+                given()
                     .when()
                     .delete(fullPath)
                     .then()
@@ -118,5 +127,14 @@ public class DynamicApiTest {
             default:
                 throw new IllegalArgumentException("Unsupported method: " + method);
         }
+    }
+
+    private String createPostBody(String path) {
+        if (path.contains("/posts")) {
+            return "{\"title\": \"Test Post\", \"body\": \"Test body\", \"userId\": 1}";
+        } else if (path.contains("/users")) {
+            return "{\"name\": \"Test User\", \"job\": \"Tester\"}";
+        }
+        return "{\"test\": true}";
     }
 }
