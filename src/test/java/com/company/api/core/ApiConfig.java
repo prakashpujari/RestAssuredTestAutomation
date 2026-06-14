@@ -1,57 +1,47 @@
 package com.company.api.core;
+import com.company.api.core.RetryFilter;
 
+import io.restassured.RestAssured;
 import io.restassured.filter.Filter;
-import io.restassured.filter.FilterContext;
-import io.restassured.response.Response;
-import io.restassured.specification.FilterableRequestSpecification;
-import io.restassured.specification.FilterableResponseSpecification;
+import com.company.api.core.EnvironmentResolver;
+import io.restassured.filter.log.RequestLoggingFilter;
+import io.restassured.filter.log.ResponseLoggingFilter;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.HttpClientConfig;
-import java.util.UUID;
 
-/**
- * Central configuration for API tests including common filters and settings.
- */
+import java.util.Arrays;
+import java.util.List;
+
 public class ApiConfig {
 
-    /**
-     * Applies common configuration to RestAssured requests.
-     * Includes correlation ID, logging, headers, and retry logic.
-     */
     public static void configure() {
-        // Clear any existing configuration
-        io.restassured.RestAssured.filters().clear();
 
-        // Add correlation ID filter (generates UUID per request)
-        io.restassured.RestAssured.filters().add(new CorrelationIdFilter());
-
-        // Add logging filter
-        io.restassured.RestAssured.filters().add(new LoggingFilter());
-
-        // Add retry filter for flaky endpoints
-        io.restassured.RestAssured.filters().add(new RetryFilter(3)); // 3 retries
-
-        // Set base URL from environment resolver
+        // Base URL
         String baseUrl = EnvironmentResolver.getBaseUrl();
-        io.restassured.RestAssured.baseURI = baseUrl;
+        RestAssured.baseURI = baseUrl;
         System.out.println("ApiConfig.configure(): Setting RestAssured baseURI to: " + baseUrl);
 
-        // Set timeout (in milliseconds) - configurable via system property
-        String timeoutStr = System.getProperty("restassured.timeout", "10000");
-        long timeoutMillis = Long.parseLong(timeoutStr);
-        io.restassured.RestAssured.config = io.restassured.config.RestAssuredConfig.newConfig()
-                .httpClient(io.restassured.config.HttpClientConfig.httpClientConfig()
+        // Timeout
+        int timeoutMillis = Integer.parseInt(System.getProperty("restassured.timeout", "10000"));
+        RestAssured.config = RestAssuredConfig.newConfig()
+                .httpClient(HttpClientConfig.httpClientConfig()
                         .setParam("http.connection.timeout", timeoutMillis)
                         .setParam("http.socket.timeout", timeoutMillis));
 
-        // Enable logging of request and response if validation fails
-        io.restassured.RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
+        // Logging
+        RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
+
+        // Filters (CORRECT WAY)
+        List<Filter> filters = Arrays.asList(
+                new RequestLoggingFilter(),
+                new ResponseLoggingFilter(),
+                new RetryFilter(3, 1000)   // <-- YOUR CUSTOM RETRY FILTER
+        );
+
+        RestAssured.filters(filters);
     }
 
-    /**
-     * Resets RestAssured configuration to defaults.
-     */
     public static void reset() {
-        io.restassured.RestAssured.reset();
+        RestAssured.reset();
     }
 }

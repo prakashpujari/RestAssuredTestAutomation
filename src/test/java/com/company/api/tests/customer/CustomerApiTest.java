@@ -3,10 +3,12 @@ package com.company.api.tests.customer;
 import com.company.api.builders.CustomerRequestBuilder;
 import com.company.api.core.BaseApiTest;
 import com.company.api.models.Customer;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import static com.github.tomakehurst.wiremock.client.WireMock.absent;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DisplayName;
 
-import com.github.tomakehurst.wiremock.client.WireMock;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -24,6 +26,118 @@ class CustomerApiTest extends BaseApiTest {
     @BeforeEach
     public void setUp() {
         // Additional setup if needed
+    }
+
+    @Override
+    protected void setupStubs() {
+        // Clear all existing mappings
+        WireMock.reset();
+
+        // Stub for GET non-existent customer (404)
+        WireMock.stubFor(WireMock.get(WireMock.urlEqualTo("/customers/00000000-0000-0000-0000-000000000000"))
+                .atPriority(5)
+                .willReturn(WireMock.aResponse()
+                        .withStatus(404)));
+
+
+        // Stub for GET customer by ID (success)
+        WireMock.stubFor(WireMock.get(WireMock.urlPathMatching("/customers/([a-zA-Z0-9\\-]+)"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"$1\",\"firstName\":\"John\",\"lastName\":\"Doe\"}")));
+
+        // Stub for POST create customer (success)
+        WireMock.stubFor(WireMock.post(WireMock.urlPathEqualTo("/customers"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(201)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"123\",\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john.doe@example.com\",\"phone\":\"123-456-7890\"}")));
+
+        // Stub for PUT update customer (success)
+        WireMock.stubFor(WireMock.put(WireMock.urlPathMatching("/customers/([a-zA-Z0-9\\-]+)"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"$1\",\"firstName\":\"Jane\",\"lastName\":\"Smith\",\"email\":\"jane.smith@example.com\",\"phone\":\"098-765-4321\"}")));
+
+        // Stub for DELETE customer (success)
+        WireMock.stubFor(WireMock.delete(WireMock.urlPathMatching("/customers/([a-zA-Z0-9\\-]+)"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(204)));
+
+        // Stub for POST customer with invalid email
+        WireMock.stubFor(WireMock.post(WireMock.urlPathEqualTo("/customers"))
+                .withRequestBody(WireMock.matchingJsonPath("$.email", WireMock.containing("invalid")))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(400)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"message\":\"Invalid email format\"}"))
+                .atPriority(10));
+
+        // Stub for POST customer with missing required fields (email null)
+        WireMock.stubFor(WireMock.post(WireMock.urlPathEqualTo("/customers"))
+                .withRequestBody(WireMock.matchingJsonPath("$.email", WireMock.absent()))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(400)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"message\":\"Email is required\"}"))
+                .atPriority(20));
+
+        // Stub for missing client_id header
+        WireMock.stubFor(WireMock.post(WireMock.urlPathEqualTo("/customers"))
+                .withHeader("client_id", WireMock.absent())
+                .willReturn(WireMock.aResponse()
+                        .withStatus(401)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"message\":\"Missing client_id header\"}"))
+                .atPriority(30));
+
+        // Stub for invalid client_id
+        WireMock.stubFor(WireMock.post(WireMock.urlPathEqualTo("/customers"))
+                .withHeader("client_id", WireMock.equalTo("invalid-client"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(401)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"message\":\"Invalid client_id\"}"))
+                .atPriority(5));
+
+        // Stub for missing client_secret
+        WireMock.stubFor(WireMock.post(WireMock.urlPathEqualTo("/customers"))
+                .withHeader("client_secret", WireMock.absent())
+                .willReturn(WireMock.aResponse()
+                        .withStatus(401)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"message\":\"Missing client_secret header\"}"))
+                .atPriority(50));
+
+        // Stub for CORS preflight request
+        WireMock.stubFor(WireMock.options(WireMock.urlPathEqualTo("/customers"))
+                .withHeader("Origin", WireMock.equalTo("https://trusted-domain.com"))
+                .withHeader("Access-Control-Request-Method", WireMock.equalTo("POST"))
+                .withHeader("Access-Control-Request-Headers", WireMock.equalTo("content-type"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Access-Control-Allow-Origin", "https://trusted-domain.com")
+                        .withHeader("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS")
+                        .withHeader("Access-Control-Allow-Headers", "content-type, client_id, client_secret, correlation_id")));
+
+        // Stub for rate limiting: when X-Trigger-Rate-Limit header is present, return 429
+        WireMock.stubFor(WireMock.post(WireMock.urlPathEqualTo("/customers"))
+                .withHeader("X-Trigger-Rate-Limit", WireMock.equalTo("true"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(429)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"message\":\"Rate limit exceeded\"}"))
+                .atPriority(60));
+
+        // Fallback stub for POST customer (success) - lower priority
+        WireMock.stubFor(WireMock.post(WireMock.urlPathEqualTo("/customers"))
+                .willReturn(WireMock.aResponse()
+                        .withStatus(201)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"123\",\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john.doe@example.com\",\"phone\":\"123-456-7890\"}"))
+                .atPriority(100));
     }
 
     @Nested
@@ -65,6 +179,8 @@ class CustomerApiTest extends BaseApiTest {
                     .body("id", notNullValue())
                     .body("firstName", equalTo("John"))
                     .body("lastName", equalTo("Doe"))
+                    .body("email", equalTo("john.doe@example.com"))
+                    .body("phone", equalTo("123-456-7890"))
                     .header("Content-Type", "application/json");
         }
 
@@ -78,7 +194,8 @@ class CustomerApiTest extends BaseApiTest {
             builder.withId(testCustomerId)
                    .withFirstName("Jane")
                    .withLastName("Smith")
-                   .withEmail("jane.smith@example.com");
+                   .withEmail("jane.smith@example.com")
+                   .withPhone("098-765-4321");
             Customer updatedCustomer = builder.build();
 
             given()
@@ -92,7 +209,8 @@ class CustomerApiTest extends BaseApiTest {
                     .body("id", equalTo(testCustomerId))
                     .body("firstName", equalTo("Jane"))
                     .body("lastName", equalTo("Smith"))
-                    .body("email", equalTo("jane.smith@example.com"));
+                    .body("email", equalTo("jane.smith@example.com"))
+                    .body("phone", equalTo("098-765-4321"));
         }
 
         @Test
@@ -275,6 +393,7 @@ class CustomerApiTest extends BaseApiTest {
                         .header("client_id", "test-client")
                         .header("client_secret", "test-secret")
                         .header("correlation_id", "test-correlation-" + i)
+                        .header("X-Trigger-Rate-Limit", "true") // Trigger the 429 stub
                         .contentType(ContentType.JSON)
                         .body(new CustomerRequestBuilder().build())
                 .when()

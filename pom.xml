@@ -3,6 +3,7 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.company</groupId>
@@ -10,8 +11,9 @@
     <version>1.0.0</version>
     <name>Rest Assured Test Automation for MuleSoft APIs</name>
     <description>Enterprise-grade API testing framework for MuleSoft APIs using Rest Assured</description>
+
     <properties>
-        <java.version>11</java.version>
+        <java.version>17</java.version>
         <rest-assured.version>5.3.0</rest-assured.version>
         <junit.jupiter.version>5.10.0</junit.jupiter.version>
         <hamcrest.version>2.2</hamcrest.version>
@@ -27,7 +29,15 @@
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
             <version>${rest-assured.version}</version>
-            <scope>test</scope>
+            <scope>compile</scope>
+        </dependency>
+
+        <!-- JSON Schema Validator -->
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>${rest-assured.version}</version>
+            <scope>compile</scope>
         </dependency>
 
         <!-- JUnit 5 -->
@@ -35,7 +45,7 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>${junit.jupiter.version}</version>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
 
         <!-- Hamcrest -->
@@ -43,7 +53,7 @@
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
             <version>${hamcrest.version}</version>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
 
         <!-- Allure JUnit5 -->
@@ -51,29 +61,39 @@
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-junit5</artifactId>
             <version>${allure-junit5.version}</version>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
 
-        <!-- JSON Schema Validator (Rest Assured module) -->
-        <dependency>
-            <groupId>io.rest-assured</groupId>
-            <artifactId>json-schema-validator</artifactId>
-            <version>${rest-assured.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- WireMock standalone for ResponseTemplateTransformer -->
+        <!-- WireMock -->
         <dependency>
             <groupId>com.github.tomakehurst</groupId>
             <artifactId>wiremock-jre8-standalone</artifactId>
             <version>2.35.0</version>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
-    </dependencies>
+        <!-- Spring Boot dependencies -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+        <version>3.2.4</version>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-actuator</artifactId>
+        <version>3.2.4</version>
+    </dependency>
+</dependencies>
 
     <build>
         <plugins>
-            <!-- Maven Compiler Plugin -->
+        <!-- Spring Boot Maven Plugin -->            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>3.2.4</version>
+            </plugin>
+
+
+            <!-- Compiler -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -84,7 +104,7 @@
                 </configuration>
             </plugin>
 
-            <!-- Maven Surefire Plugin (for unit tests) -->
+            <!-- Surefire (unit tests) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -96,12 +116,14 @@
                         <include>**/*Tests.java</include>
                     </includes>
                     <properties>
-                        <configurationParameters>junit.jupiter.extensions.autodetection.enabled=true</configurationParameters>
+                        <configurationParameters>
+                            junit.jupiter.extensions.autodetection.enabled=true
+                        </configurationParameters>
                     </properties>
                 </configuration>
             </plugin>
 
-            <!-- Maven Failsafe Plugin (for integration tests) -->
+            <!-- Failsafe (integration tests) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
@@ -120,13 +142,10 @@
                         <include>**/*IT.java</include>
                         <include>**/*ITCase.java</include>
                     </includes>
-                    <properties>
-                        <configurationParameters>junit.jupiter.extensions.autodetection.enabled=true</configurationParameters>
-                    </properties>
                 </configuration>
             </plugin>
 
-            <!-- Allure Maven Plugin -->
+            <!-- Allure -->
             <plugin>
                 <groupId>io.qameta.allure</groupId>
                 <artifactId>allure-maven</artifactId>
@@ -135,23 +154,25 @@
                     <resultsDirectory>target/allure-results</resultsDirectory>
                 </configuration>
             </plugin>
+
         </plugins>
     </build>
 
     <profiles>
-        <!-- Local Environment -->
+
+        <!-- Local -->
         <profile>
             <id>local</id>
             <activation>
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <env.url>http://localhost:8081</env.url>
+                <env.url>http://localhost:8089</env.url>
                 <env.name>local</env.name>
             </properties>
         </profile>
 
-        <!-- Development Environment -->
+        <!-- Dev -->
         <profile>
             <id>dev</id>
             <properties>
@@ -160,7 +181,7 @@
             </properties>
         </profile>
 
-        <!-- QA Environment -->
+        <!-- QA -->
         <profile>
             <id>qa</id>
             <properties>
@@ -169,7 +190,7 @@
             </properties>
         </profile>
 
-        <!-- UAT Environment -->
+        <!-- UAT -->
         <profile>
             <id>uat</id>
             <properties>
@@ -177,5 +198,16 @@
                 <env.name>uat</env.name>
             </properties>
         </profile>
+
+        <!-- PROD -->
+        <profile>
+            <id>prod</id>
+            <properties>
+                <env.url>https://api.company.com/customers</env.url>
+                <env.name>prod</env.name>
+            </properties>
+        </profile>
+
     </profiles>
+
 </project>
