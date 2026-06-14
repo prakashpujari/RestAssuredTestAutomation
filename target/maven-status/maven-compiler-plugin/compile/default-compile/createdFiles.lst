@@ -1,9 +1,14 @@
 com\company\api\service\TestExecutorService$1.class
+com\company\api\config\ApiEntity.class
 com\company\api\Application.class
 com\company\api\config\ApiDefinitionLoader.class
+com\company\api\config\TestExecutionService.class
+com\company\api\config\TestResultRepository.class
 com\company\api\config\ApiTestConfigController.class
 com\company\api\service\GroqService.class
+com\company\api\config\TestResultEntity.class
 com\company\api\service\TestExecutorService.class
+com\company\api\config\ApiConfigRepository.class
 com\company\api\controller\TestController.class
 com\company\api\model\TestDefinition.class
 com\company\api\model\TestRunResult.class
