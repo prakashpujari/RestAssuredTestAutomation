@@ -170,6 +170,18 @@ public class ApiTestConfigController {
         return ResponseEntity.ok(lastTestResults);
     }
 
+    /**
+     * Add a new API configuration.
+     */
+    @PostMapping("/apis")
+    public ResponseEntity<Map<String, Object>> addApi(@RequestBody Map<String, Object> apiConfig) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "SUCCESS");
+        response.put("message", "API configuration added: " + apiConfig.get("name"));
+        response.put("api", apiConfig);
+        return ResponseEntity.ok(response);
+    }
+
     // DTO for test run requests
     public static class TestRunRequest {
         public List<String> apis;

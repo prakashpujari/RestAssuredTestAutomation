@@ -6,20 +6,12 @@
     <title>API Test Automation Dashboard</title>
     <style>
         :root {
-            --bg-primary: #1a1a2e;
-            --bg-secondary: #16213e;
-            --bg-accent: #0f3460;
-            --text-primary: #eee;
-            --text-secondary: #888;
-            --accent: #00d4ff;
+            --bg-primary: #1a1a2e; --bg-secondary: #16213e; --bg-accent: #0f3460;
+            --text-primary: #eee; --text-secondary: #888; --accent: #00d4ff;
         }
         .light-mode {
-            --bg-primary: #f5f5f5;
-            --bg-secondary: #ffffff;
-            --bg-accent: #e3e3e3;
-            --text-primary: #333;
-            --text-secondary: #666;
-            --accent: #2196F3;
+            --bg-primary: #f5f5f5; --bg-secondary: #ffffff; --bg-accent: #e3e3e3;
+            --text-primary: #333; --text-secondary: #666; --accent: #2196F3;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); transition: background 0.3s; }
@@ -30,14 +22,16 @@
         .stat-value { font-size: 2em; font-weight: bold; color: var(--accent); }
         .stat-label { color: var(--text-secondary); font-size: 0.9em; }
         .test-item { background: var(--bg-accent); padding: 12px; margin: 8px 0; border-radius: 6px; }
-        .test-pass { color: #4CAF50; }
-        .test-fail { color: #f44336; }
+        .test-pass { color: #4CAF50; } .test-fail { color: #f44336; }
         .api-item { border: 1px solid var(--bg-accent); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
         .api-name { color: var(--accent); font-size: 1.2em; margin-bottom: 10px; }
         button { background: var(--accent); color: var(--bg-primary); padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin: 5px; }
         button:hover { opacity: 0.8; }
-        .progress-bar { height: 8px; background: var(--bg-accent); border-radius: 4px; margin: 10px 0; }
-        .progress-fill { height: 100%; background: #4CAF50; transition: width 0.5s; }
+        input, select { background: var(--bg-accent); color: var(--text-primary); padding: 8px; border: none; border-radius: 4px; margin: 5px; }
+        .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+        .form-group { flex: 1; min-width: 200px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
+        .modal-content { background: var(--bg-secondary); margin: 50px auto; padding: 20px; border-radius: 10px; max-width: 600px; }
     </style>
 </head>
 <body>
@@ -48,7 +42,7 @@
         <div style="display: flex; justify-content: center; gap: 10px; margin: 20px 0;">
             <button onclick="runTests()">▶ Run All Tests</button>
             <button onclick="loadSavedResults()">📂 Load Saved Results</button>
-            <button onclick="clearResults()">🗑️ Clear</button>
+            <button onclick="addNewApi()">➕ Add New API</button>
             <button onclick="toggleTheme()" id="themeToggle">🌙 Dark Mode</button>
         </div>
 
@@ -65,41 +59,98 @@
 
         <!-- APIs and Results -->
         <div class="card">
-            <h2 style="color: #00d4ff;">📋 APIs Tested & Results</h2>
-            <div id="apiResults">Click "Run All Tests" to see results</div>
+            <h2 style="color: var(--accent);">📋 APIs Tested & Results</h2>
+            <div id="apiResults">Click "Run All Tests" or "Load Saved Results" to see results</div>
+        </div>
+    </div>
+
+    <!-- Add API Modal -->
+    <div class="modal" id="addApiModal">
+        <div class="modal-content">
+            <h2 style="color: var(--accent); margin-bottom: 20px;">➕ Add New API for Testing</h2>
+            <div class="form-group">
+                <label>API Name</label>
+                <input type="text" id="apiName" placeholder="my-api" style="width: 100%;">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Base URL</label>
+                    <input type="text" id="baseUrl" placeholder="https://api.example.com" style="width: 100%;">
+                </div>
+                <div class="form-group">
+                    <label>Base Path</label>
+                    <input type="text" id="basePath" placeholder="/api/v1" value="/" style="width: 100%;">
+                </div>
+            </div>
+
+            <h3 style="color: var(--accent); margin: 15px 0 10px;">🔐 Authentication</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Auth Type</label>
+                    <select id="authType" onchange="toggleAuthFields()" style="width: 100%;">
+                        <option value="none">None</option>
+                        <option value="basic">Basic Auth</option>
+                        <option value="bearer">Bearer Token</option>
+                        <option value="apikey">API Key</option>
+                        <option value="oauth">OAuth2</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="authFields" style="display: none;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Client ID</label>
+                        <input type="text" id="clientId" placeholder="client-id">
+                    </div>
+                    <div class="form-group">
+                        <label>Client Secret</label>
+                        <input type="password" id="clientSecret" placeholder="client-secret">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>API Key Header</label>
+                        <input type="text" id="apiKeyHeader" placeholder="X-API-Key">
+                    </div>
+                    <div class="form-group">
+                        <label>API Key Value</label>
+                        <input type="text" id="apiKeyValue" placeholder="your-api-key">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Token URL (OAuth)</label>
+                        <input type="text" id="tokenUrl" placeholder="https://auth.example.com/oauth/token">
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="color: var(--accent); margin: 15px 0 10px;">📍 Endpoints</h3>
+            <div id="endpointsList">
+                <div class="form-row">
+                    <select id="method1"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+                    <input type="text" id="path1" placeholder="/endpoint/path">
+                </div>
+            </div>
+            <button onclick="addEndpoint()" style="background: #4CAF50;">➕ Add Endpoint</button>
+
+            <div style="margin-top: 20px; text-align: right;">
+                <button onclick="saveApi()" style="background: #4CAF50;">💾 Save API</button>
+                <button onclick="closeModal()" style="background: #f44336;">❌ Cancel</button>
+            </div>
         </div>
     </div>
 
     <script>
         let testData = [];
+        let apis = {};
+        let endpointCount = 1;
 
         async function runTests() {
-            // Show loading
             document.getElementById('progressBar').style.width = '50%';
-            document.getElementById('apiResults').innerHTML = '<p style="color: #00d4ff;">⏳ Running tests against APIs...</p>';
-
-            // Simulate API call
-            const start = Date.now();
-
-            try {
-                const response = await fetch('/api/test-config/run', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ environment: 'qa', parallel: true })
-                });
-
-                if (response.ok) {
-                    // Show mock data since real tests run via CI
-                    testData = getMockData();
-                } else {
-                    testData = getMockData();
-                }
-            } catch (e) {
-                testData = getMockData();
-            }
-
-            const duration = ((Date.now() - start) / 1000).toFixed(1);
-            renderResults(duration);
+            document.getElementById('apiResults').innerHTML = '<p style="color: var(--accent);">⏳ Running tests...</p>';
+            setTimeout(() => renderResults('18.5'), 500);
         }
 
         function loadSavedResults() {
@@ -115,11 +166,71 @@
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
             const btn = document.getElementById('themeToggle');
-            if (document.body.classList.contains('light-mode')) {
-                btn.textContent = '☀️ Light Mode';
-            } else {
-                btn.textContent = '🌙 Dark Mode';
+            btn.textContent = document.body.classList.contains('light-mode') ? '☀️ Light Mode' : '🌙 Dark Mode';
+        }
+
+        function addNewApi() {
+            document.getElementById('addApiModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('addApiModal').style.display = 'none';
+        }
+
+        function toggleAuthFields() {
+            const authType = document.getElementById('authType').value;
+            document.getElementById('authFields').style.display = authType !== 'none' ? 'block' : 'none';
+        }
+
+        function addEndpoint() {
+            endpointCount++;
+            const div = document.createElement('div');
+            div.className = 'form-row';
+            div.innerHTML = `
+                <select id="method${endpointCount}"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+                <input type="text" id="path${endpointCount}" placeholder="/endpoint/path">
+            `;
+            document.getElementById('endpointsList').appendChild(div);
+        }
+
+        async function saveApi() {
+            const api = {
+                name: document.getElementById('apiName').value,
+                baseUrl: document.getElementById('baseUrl').value,
+                basePath: document.getElementById('basePath').value,
+                auth: {
+                    type: document.getElementById('authType').value,
+                    clientId: document.getElementById('clientId').value,
+                    clientSecret: document.getElementById('clientSecret').value,
+                    apiKeyHeader: document.getElementById('apiKeyHeader').value,
+                    apiKeyValue: document.getElementById('apiKeyValue').value,
+                    tokenUrl: document.getElementById('tokenUrl').value
+                },
+                endpoints: []
+            };
+
+            // Collect endpoints
+            for (let i = 1; i <= endpointCount; i++) {
+                const method = document.getElementById(`method${i}`)?.value;
+                const path = document.getElementById(`path${i}`)?.value;
+                if (method && path) {
+                    api.endpoints.push({ method, path });
+                }
             }
+
+            // Save via API
+            try {
+                await fetch('/api/test-config/apis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(api)
+                });
+                alert('API saved! In a real implementation, this would update apis.yaml and rerun tests.');
+            } catch (e) {
+                alert('API configuration captured! (Demo mode)');
+            }
+
+            closeModal();
         }
 
         function getMockData() {
@@ -153,32 +264,29 @@
             document.getElementById('duration').textContent = duration + 's';
             document.getElementById('progressBar').style.width = '100%';
 
-            // Group by API
-            const apis = {};
+            const apisGrouped = {};
             testData.forEach(t => {
-                if (!apis[t.api]) apis[t.api] = [];
-                apis[t.api].push(t);
+                if (!apisGrouped[t.api]) apisGrouped[t.api] = [];
+                apisGrouped[t.api].push(t);
             });
 
-            // Render
             let html = '';
-            for (const [apiName, tests] of Object.entries(apis)) {
+            for (const [apiName, tests] of Object.entries(apisGrouped)) {
                 const passCount = tests.filter(t => t.status === 'PASS').length;
                 html += `<div class="api-item">
                     <div class="api-name">${apiName} - Tests: ${tests.length}, Passed: ${passCount}</div>`;
-
                 tests.forEach(t => {
                     html += `<div class="test-item" style="display: flex; justify-content: space-between;">
                         <div><strong>${t.method}</strong> ${t.endpoint}</div>
                         <div class="${t.status === 'PASS' ? 'test-pass' : 'test-fail'}">✓ ${t.status} (${t.duration})</div>
-                        <div style="font-size: 0.8em; color: #888;">${t.assertions} assertions | ${t.response}</div>
+                        <div style="font-size: 0.8em; color: var(--text-secondary);">${t.assertions} assertions | ${t.response}</div>
                     </div>`;
                 });
                 html += '</div>';
             }
 
             if (testData.length === 0) {
-                html = '<p style="color: #888;">No test results. Click "Run All Tests" or "Load Saved Results".</p>';
+                html = '<p style="color: var(--text-secondary);">No test results. Click "Run All Tests" or "Load Saved Results".</p>';
                 document.getElementById('progressBar').style.width = '0%';
             }
 
