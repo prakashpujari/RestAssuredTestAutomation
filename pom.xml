@@ -71,6 +71,15 @@
             <version>2.35.0</version>
             <scope>compile</scope>
         </dependency>
+
+        <!-- SnakeYAML for config parsing -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>2.2</version>
+            <scope>compile</scope>
+        </dependency>
+
         <!-- Spring Boot dependencies -->
     <dependency>
         <groupId>org.springframework.boot</groupId>
@@ -81,6 +90,13 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-actuator</artifactId>
         <version>3.2.4</version>
+    </dependency>
+
+    <!-- Jackson for JSON processing -->
+    <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.16.1</version>
     </dependency>
 </dependencies>
 

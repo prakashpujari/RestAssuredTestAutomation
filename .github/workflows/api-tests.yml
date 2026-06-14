@@ -1,0 +1,106 @@
+name: API Test Suite
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Nightly tests
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Manual trigger with environment choice
+    inputs:
+      environment:
+        description: 'Test environment'
+        required: true
+        default: 'qa'
+        type: choice
+        options:
+          - local
+          - dev
+          - qa
+          - uat
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Parallel execution across modules
+        # Add your API modules here
+        module: [customers, orders, products, payments]
+
+    env:
+      # Default to qa, can be overridden
+      TEST_ENV: ${{ github.event.inputs.environment || 'qa' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Run API tests - ${{ matrix.module }}
+        run: |
+          mvn test \
+            -Dtest.env=${{ env.TEST_ENV }} \
+            -Dtest.module=${{ matrix.module }} \
+            -Dtest=*Test
+        env:
+          CLIENT_ID_QA: ${{ secrets.CLIENT_ID_QA }}
+          CLIENT_SECRET_QA: ${{ secrets.CLIENT_SECRET_QA }}
+
+      - name: Publish Allure Report
+        if: always()
+        uses: simple-elf/allure-report-action@master
+        with:
+          allure-results: target/allure-results
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.module }}
+          path: target/surefire-reports/
+
+  # Parallel test execution for performance
+  parallel-tests:
+    needs: api-tests
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'prod' || github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Run full test suite in parallel
+        run: |
+          mvn test -Dparallel=methods -DthreadCount=20 -Dtest.env=${{ github.event.inputs.environment || 'qa' }}
+
+  # Slack notifications
+  notify:
+    needs: [api-tests, parallel-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Slack notification
+        uses: 8398a77a8/slack-notify@v1.2.6
+        with:
+          status: ${{ needs.api-tests.result }}
+          channel: '#api-tests'
+          webhook: ${{ secrets.SLACK_WEBHOOK }}

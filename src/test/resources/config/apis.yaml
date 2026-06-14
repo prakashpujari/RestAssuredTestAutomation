@@ -1,0 +1,87 @@
+# API Test Definitions - Add 100+ APIs here
+apis:
+  - name: customers
+    basePath: /customers
+    endpoints:
+      - method: GET
+        path: /customers/{id}
+        description: Get customer by ID
+        tests:
+          - name: get-by-id-success
+            type: positive
+            expectedStatus: 200
+            headers:
+              client_id: ${env:CLIENT_ID}
+              client_secret: ${env:CLIENT_SECRET}
+          - name: get-by-id-not-found
+            type: negative
+            expectedStatus: 404
+
+      - method: POST
+        path: /customers
+        description: Create customer
+        tests:
+          - name: create-success
+            type: positive
+            expectedStatus: 201
+            bodyTemplate: customer-create.json
+          - name: create-missing-email
+            type: negative
+            expectedStatus: 400
+            bodyTemplate: customer-missing-email.json
+
+      - method: PUT
+        path: /customers/{id}
+        description: Update customer
+        tests:
+          - name: update-success
+            type: positive
+            expectedStatus: 200
+
+      - method: DELETE
+        path: /customers/{id}
+        description: Delete customer
+        tests:
+          - name: delete-success
+            type: positive
+            expectedStatus: 204
+
+  - name: orders
+    basePath: /orders
+    endpoints:
+      - method: GET
+        path: /orders
+        tests:
+          - name: list-success
+            type: positive
+            expectedStatus: 200
+      - method: POST
+        path: /orders
+        tests:
+          - name: create-success
+            type: positive
+            expectedStatus: 201
+
+  # Add more APIs here (products, payments, users, etc.)
+  # Each API just needs: endpoints + basic test definitions
+
+environments:
+  local:
+    baseUrl: http://localhost:8089
+    client_id: test-client
+    client_secret: test-secret
+
+  dev:
+    baseUrl: https://dev-api.company.com
+    client_id: ${CLIENT_ID_DEV}
+    client_secret: ${CLIENT_SECRET_DEV}
+
+  qa:
+    baseUrl: https://qa-api.company.com
+    client_id: ${CLIENT_ID_QA}
+    client_secret: ${CLIENT_SECRET_QA}
+
+  prod:
+    baseUrl: https://api.company.com
+    client_id: ${CLIENT_ID_PROD}
+    client_secret: ${CLIENT_SECRET_PROD}
