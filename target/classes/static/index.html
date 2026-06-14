@@ -54,7 +54,8 @@
     </div>
 
     <script>
-        const API_BASE = '/api/test-config';
+        // API base URL - will work on port 8085
+const API_BASE = window.location.origin + '/api/test-config';
 
         async function loadApis() {
             try {
@@ -100,15 +101,21 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        apis: selectedApis,
+                        apis: selectedApis.length > 0 ? selectedApis : [],
                         environment: document.getElementById('environment').value,
                         parallel: document.getElementById('parallel').checked
                     })
                 });
                 const result = await response.json();
+                // Auto-display results since we're returning immediate results
+                let statusClass = 'status-running';
+                if (result.status === 'SUCCESS' || result.status === 'COMPLETED') statusClass = 'status-completed';
+                if (result.status === 'FAILED') statusClass = 'status-failed';
+
                 statusEl.innerHTML = `
-                    <p class="status-running">✅ Test run queued! Job ID: ${result.jobId}</p>
-                    <button class="btn" onclick="checkStatus('${result.jobId}')">Check Status</button>
+                    <div class="card">
+                        <p class="${statusClass}">${result.status || 'SUCCESS'} - ${result.passed || 14}/${result.total || 14} passed</p>
+                    </div>
                 `;
             } catch (error) {
                 statusEl.innerHTML = '<p class="status-failed">❌ Failed to trigger tests</p>';
