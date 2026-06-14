@@ -18,7 +18,7 @@
         <junit.jupiter.version>5.10.0</junit.jupiter.version>
         <hamcrest.version>2.2</hamcrest.version>
         <allure-junit5.version>2.25.0</allure-junit5.version>
-        <allure-maven.version>2.13.8</allure-maven.version>
+        <allure-maven.version>2.25.0</allure-maven.version>
         <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
         <maven-failsafe-plugin.version>3.1.2</maven-failsafe-plugin.version>
     </properties>
@@ -102,33 +102,19 @@
             <scope>compile</scope>
         </dependency>
 
-        <!-- SnakeYAML for config parsing -->
+        <!-- Spring Boot dependencies -->
         <dependency>
-            <groupId>org.yaml</groupId>
-            <artifactId>snakeyaml</artifactId>
-            <version>2.2</version>
-            <scope>compile</scope>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>3.2.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+            <version>3.2.4</version>
         </dependency>
 
-        <!-- Spring Boot dependencies -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-web</artifactId>
-        <version>3.2.4</version>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-actuator</artifactId>
-        <version>3.2.4</version>
-    </dependency>
-
-    <!-- Jackson for JSON processing -->
-    <dependency>
-        <groupId>com.fasterxml.jackson.core</groupId>
-        <artifactId>jackson-databind</artifactId>
-        <version>2.16.1</version>
-    </dependency>
-</dependencies>
+    </dependencies>
 
     <build>
         <plugins>
@@ -191,14 +177,11 @@
                 </configuration>
             </plugin>
 
-            <!-- Allure -->
+            <!-- Allure Commandline -->
             <plugin>
                 <groupId>io.qameta.allure</groupId>
                 <artifactId>allure-maven</artifactId>
-                <version>${allure-maven.version}</version>
-                <configuration>
-                    <resultsDirectory>target/allure-results</resultsDirectory>
-                </configuration>
+                <version>2.13.9</version>
             </plugin>
 
         </plugins>
