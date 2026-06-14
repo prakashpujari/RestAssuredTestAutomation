@@ -1,0 +1,39 @@
+# Build
+target/
+tmp/
+*.class
+*.jar
+*.war
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Logs
+*.log
+hs_err_pid*.log
+replay_pid*.log
+
+# Memory and temp files
+.claude/memory/
+allure-results/
+
+# Backups
+*.bak
+*.backup
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temp files
+cp.txt
+run.bat
+
+# Summary files
+FINAL_SUMMARY.md
+COMPLETION_SUMMARY.md
+PROJECT_CONTENTS.md
