@@ -14,8 +14,7 @@ cd RestAssuredTestAutomation
 # 2. Run sample tests (no setup needed - uses public APIs)
 mvn test -Dtest=PublicApiTest
 
-# 3. See results
-mvn allure:serve
+# 3. See results in console (look for "BUILD SUCCESS")
 ```
 
 ---
@@ -76,14 +75,20 @@ mvn test -Dtest=PublicApiTest#listPosts
 ### STEP 4: Check Results
 
 ```bash
-# View test results in target folder
-# On Windows:
-start target/surefire-reports/index.html
+# Test results appear in console automatically
+# Look for: Tests run: 14, Failures: 0, Errors: 0, Skipped: 0, BUILD SUCCESS
 
-# On Mac/Linux:
-open target/surefire-reports/
+# View detailed XML reports:
+# target/surefire-reports/TEST-*.xml
+```
 
-# Or check console output for test summary
+### STEP 4b: Run UI Dashboard (Optional)
+
+```bash
+# Spring Boot app runs on port 8085 (to avoid conflicts)
+mvn spring-boot:run
+
+# Then open: http://localhost:8085
 ```
 
 ---
