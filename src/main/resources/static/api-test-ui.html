@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test Generator</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; color: #555; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        textarea { min-height: 100px; font-family: monospace; }
+        .btn { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; }
+        .btn:hover { background: #0056b3; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .result { background: white; padding: 20px; border-radius: 8px; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .loading { text-align: center; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState } = React;
+        const { createElement: h } = React;
+
+        function ApiTestForm() {
+            const [formData, setFormData] = useState({
+                endpoint: '',
+                method: 'POST',
+                authType: 'NONE',
+                clientId: '',
+                clientSecret: '',
+                requestBody: '{"name": "Test", "value": 123}'
+            });
+            const [loading, setLoading] = useState(false);
+            const [result, setResult] = useState(null);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setResult(null);
+
+                try {
+                    const response = await fetch('/api/test/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(formData)
+                    });
+                    const data = await response.json();
+                    setResult({ success: true, data });
+                } catch (err) {
+                    setResult({ success: false, error: err.message });
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const updateField = (key, value) => {
+                setFormData(prev => ({ ...prev, [key]: value }));
+            };
+
+            return h('div', { className: 'container' }, [
+                h('h1', {}, 'API Test Generator'),
+                h('form', { onSubmit: handleSubmit }, [
+                    h('div', { className: 'form-group' }, [
+                        h('label', {}, 'Endpoint URL'),
+                        h('input', {
+                            type: 'url',
+                            placeholder: 'https://api.example.com/v1/resource',
+                            value: formData.endpoint,
+                            onChange: (e) => updateField('endpoint', e.target.value),
+                            required: true
+                        })
+                    ]),
+                    h('div', { className: 'form-group' }, [
+                        h('label', {}, 'HTTP Method'),
+                        h('select', {
+                            value: formData.method,
+                            onChange: (e) => updateField('method', e.target.value)
+                        }, ['GET', 'POST', 'PUT', 'DELETE'].map(m =>
+                            h('option', { key: m, value: m }, m)
+                        ))
+                    ]),
+                    h('div', { className: 'form-group' }, [
+                        h('label', {}, 'Authentication Type'),
+                        h('select', {
+                            value: formData.authType,
+                            onChange: (e) => updateField('authType', e.target.value)
+                        }, [
+                            h('option', { value: 'NONE' }, 'No Auth'),
+                            h('option', { value: 'BASIC_AUTH' }, 'Basic Auth'),
+                            h('option', { value: 'OAUTH2' }, 'OAuth2'),
+                            h('option', { value: 'API_KEY' }, 'API Key')
+                        ])
+                    ]),
+                    formData.authType === 'BASIC_AUTH' && h('div', { className: 'form-group' }, [
+                        h('label', {}, 'Client ID'),
+                        h('input', {
+                            type: 'text',
+                            placeholder: 'your-client-id',
+                            value: formData.clientId,
+                            onChange: (e) => updateField('clientId', e.target.value)
+                        }),
+                        h('label', {}, 'Client Secret'),
+                        h('input', {
+                            type: 'password',
+                            placeholder: 'your-client-secret',
+                            value: formData.clientSecret,
+                            onChange: (e) => updateField('clientSecret', e.target.value)
+                        })
+                    ]),
+                    h('div', { className: 'form-group' }, [
+                        h('label', {}, 'Request Body (JSON)'),
+                        h('textarea', {
+                            value: formData.requestBody,
+                            onChange: (e) => updateField('requestBody', e.target.value)
+                        })
+                    ]),
+                    h('button', { type: 'submit', disabled: loading || !formData.endpoint },
+                        loading ? 'Generating Tests...' : 'Generate & Run Tests'
+                    )
+                ]),
+                result && h('div', { className: 'result' }, [
+                    result.success ?
+                        h('p', { className: 'success' }, `✅ Tests generated successfully!`) :
+                        h('p', { className: 'error' }, `❌ Error: ${result.error}`)
+                ]),
+                h('div', { className: 'result', style: { marginTop: '20px' } }, [
+                    h('h3', {}, 'Test Results Preview'),
+                    h('p', {}, 'Endpoint: ' + formData.endpoint),
+                    h('p', {}, 'Method: ' + formData.method),
+                    h('p', {}, 'Auth: ' + formData.authType)
+                ])
+            ]);
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(h(ApiTestForm));
+    </script>
+</body>
+</html>

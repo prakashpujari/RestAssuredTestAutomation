@@ -1,17 +1,98 @@
-# Rest Assured API Testing Framework for MuleSoft APIs
+# 🚀 RestAssured API Test Automation Framework
 
-An enterprise-grade API testing framework built with Java 17, Maven, JUnit 5, and Rest Assured 5.x for testing MuleSoft APIs. Features include environment-driven configuration, correlation ID tracking, comprehensive logging, retry logic, and CI/CD readiness.
+Enterprise-grade API testing framework for MuleSoft APIs using RestAssured with support for MuleSoft 4.6 → 4.9 upgrade validation.
 
-## 📋 Table of Contents
-- [Features](#features)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Usage Guide](#usage-guide)
-- [Sample Test Execution](#sample-test-execution)
-- [Extending the Framework](#extending-the-framework)
-- [CI/CD Integration](#cicd-integration)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
+## ✨ Features
+
+- **WireMock Integration** - Mock API endpoints for testing
+- **Multiple Authentication** - Basic Auth, OAuth2, API Key, No Auth
+- **Excel Export** - Test results exported to Excel format
+- **UI Dashboard** - Web-based interface for API testing
+- **MuleSoft 4.9 Ready** - Validated for MuleSoft 4.6 → 4.9 upgrade
+
+## 📦 Project Structure
+
+```
+src/
+├── main/
+│   ├── java/com/company/api/
+│   │   ├── Application.java
+│   │   ├── config/              # Configuration classes
+│   │   ├── controller/          # REST controllers
+│   │   ├── core/              # Core test components
+│   │   ├── model/             # Data models
+│   │   └── service/           # Business services
+│   └── resources/
+│       ├── static/
+│       │   └── dashboard.html   # Web UI
+│       └── application.properties
+└── test/
+    ├── java/com/company/api/
+    │   ├── builders/            # Test data builders
+    │   ├── core/                # Base test classes
+    │   ├── generator/           # Automated test generator
+    │   ├── models/              # Test models
+    │   └── tests/               # Test classes
+    └── resources/
+        └── config/apis.yaml     # API definitions
+```
+
+## 🚀 Quick Start
+
+### Run Tests
+```bash
+mvn test
+```
+
+### Run Specific Test
+```bash
+mvn test -Dtest=CustomerApiTestMuleSoft49
+```
+
+### Start UI Dashboard
+```bash
+mvn spring-boot:run
+# Open http://localhost:8080/dashboard.html
+```
+
+## 🧪 Test Categories
+
+| Category | Tests | Description |
+|----------|-------|-------------|
+| Positive Tests | 5 | Happy path scenarios |
+| Negative Tests | 6 | 400/404 error handling |
+| Policy Tests | 5 | Authentication |
+| Rate Limiting | 1 | 429 responses |
+| CORS Tests | 1 | Preflight handling |
+| Server Errors | 2 | 500/503 responses |
+| Retry Logic | 1 | Retry-After header |
+| Validation | 2 | Schema validation |
+
+## 🖥️ Using the UI Dashboard
+
+### Step 1: Start Application
+```bash
+mvn spring-boot:run
+```
+
+### Step 2: Open Dashboard
+Navigate to: **http://localhost:8080/dashboard.html**
+
+### Step 3: Configure API
+1. **Endpoint URL**: `https://api.example.com/v1/resource`
+2. **HTTP Method**: GET/POST/PUT/DELETE
+3. **Authentication**: No Auth / Basic Auth / API Key
+4. **Client ID/Secret**: For authenticated APIs
+5. **Request Body**: JSON for POST/PUT
+
+### Step 4: Run Tests
+Click **▶ Generate & Run Tests**
+
+### Step 5: View Results
+- Status: PASS/FAIL
+- HTTP Status Code
+- Response Duration
+- Response Data
 
 ## ✨ Features
 

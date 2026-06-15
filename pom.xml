@@ -18,7 +18,7 @@
         <junit.jupiter.version>5.10.0</junit.jupiter.version>
         <hamcrest.version>2.2</hamcrest.version>
         <allure-junit5.version>2.25.0</allure-junit5.version>
-        <allure-maven.version>2.25.0</allure-maven.version>
+        <allure-maven.version>2.13.9</allure-maven.version>
         <maven-surefire-plugin.version>3.1.2</maven-surefire-plugin.version>
         <maven-failsafe-plugin.version>3.1.2</maven-failsafe-plugin.version>
     </properties>
@@ -84,6 +84,18 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>2.16.1</version>
+        </dependency>
+
+        <!-- Apache POI for Excel export -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>5.2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.2.3</version>
         </dependency>
 
         <!-- WireMock -->
@@ -179,13 +191,6 @@
                         <include>**/*ITCase.java</include>
                     </includes>
                 </configuration>
-            </plugin>
-
-            <!-- Allure Commandline -->
-            <plugin>
-                <groupId>io.qameta.allure</groupId>
-                <artifactId>allure-maven</artifactId>
-                <version>2.13.9</version>
             </plugin>
 
         </plugins>

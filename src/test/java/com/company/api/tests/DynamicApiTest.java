@@ -56,7 +56,12 @@ public class DynamicApiTest {
                     String testName = (String) testCase.get("name");
                     Integer expectedStatus = (Integer) testCase.get("expectedStatus");
                     String testType = (String) testCase.get("type");
-                    Map<String, String> queryParams = (Map<String, String>) testCase.get("queryParams");
+                    Map<String, Object> queryParamsObj = (Map<String, Object>) testCase.get("queryParams");
+                    Map<String, Object> pathParamsObj = (Map<String, Object>) testCase.get("pathParams");
+
+                    // Convert to String maps
+                    Map<String, String> queryParams = convertToStringMap(queryParamsObj);
+                    Map<String, String> pathParams = convertToStringMap(pathParamsObj);
 
                     String testDisplayName = String.format("%s - %s %s [%s]",
                             apiName, method.toUpperCase(), path, testName);
@@ -64,7 +69,7 @@ public class DynamicApiTest {
                     String finalApiBaseUrl = apiBaseUrl;
                     tests.add(dynamicTest(testDisplayName, () ->
                         executeDynamicTest(finalApiBaseUrl, basePath, method, path,
-                                expectedStatus, testType, queryParams)));
+                                expectedStatus, testType, queryParams, pathParams)));
                 }
             }
         }
@@ -72,9 +77,26 @@ public class DynamicApiTest {
         return tests.stream();
     }
 
+    private Map<String, String> convertToStringMap(Map<String, Object> input) {
+        if (input == null) return null;
+        Map<String, String> result = new java.util.HashMap<>();
+        for (Map.Entry<String, Object> entry : input.entrySet()) {
+            result.put(entry.getKey(), entry.getValue().toString());
+        }
+        return result;
+    }
+
     private void executeDynamicTest(String baseUrl, String basePath, String method, String path,
-                                   int expectedStatus, String testType, Map<String, String> queryParams) {
-        String fullPath = basePath + path;
+                                   int expectedStatus, String testType, Map<String, String> queryParams,
+                                   Map<String, String> pathParams) {
+        // Replace path parameters if provided
+        String resolvedPath = path;
+        if (pathParams != null) {
+            for (Map.Entry<String, String> entry : pathParams.entrySet()) {
+                resolvedPath = resolvedPath.replace("{" + entry.getKey() + "}", entry.getValue());
+            }
+        }
+        String fullPath = basePath + resolvedPath;
 
         // Configure base URI for this specific API
         if (baseUrl != null) {
@@ -82,7 +104,7 @@ public class DynamicApiTest {
         }
 
         // Determine if we need to skip WireMock/Local execution for external APIs
-        boolean isExternalApi = !baseUrl.contains("localhost") && !baseUrl.contains("wiremock");
+        boolean isExternalApi = baseUrl != null && !baseUrl.contains("localhost") && !baseUrl.contains("wiremock");
 
         switch (method.toUpperCase()) {
             case "GET":

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test Automation Dashboard</title>
+    <style>
+        :root { --bg-primary: #1a1a2e; --bg-secondary: #16213e; --bg-accent: #0f3460; --text-primary: #eee; --text-secondary: #888; --accent: #00d4ff; }
+        .light-mode { --bg-primary: #f5f5f5; --bg-secondary: #ffffff; --bg-accent: #e3e3e3; --text-primary: #333; --text-secondary: #666; --accent: #2196F3; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); transition: all 0.3s; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        h1 { color: var(--accent); text-align: center; }
+        .card { background: var(--bg-secondary); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+        .stat-box { background: var(--bg-accent); padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 2em; font-weight: bold; color: var(--accent); }
+        .stat-label { color: var(--text-secondary); font-size: 0.9em; }
+        .test-item { background: var(--bg-accent); padding: 12px; margin: 8px 0; border-radius: 6px; }
+        .test-pass { color: #4CAF50; font-weight: bold; }
+        .test-fail { color: #f44336; font-weight: bold; }
+        .test-error { color: #FF9800; font-weight: bold; }
+        .api-item { border: 1px solid var(--bg-accent); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .api-name { color: var(--accent); font-size: 1.2em; margin-bottom: 10px; }
+        button { background: var(--accent); color: var(--bg-primary); padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin: 5px; }
+        button:hover { opacity: 0.8; }
+        input, select { background: var(--bg-accent); color: var(--text-primary); padding: 8px; border: none; border-radius: 4px; margin: 5px; width: 100%; }
+        .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+        .form-group { flex: 1; min-width: 200px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; }
+        .modal-content { background: var(--bg-secondary); margin: 50px auto; padding: 20px; border-radius: 10px; max-width: 600px; max-height: 80vh; overflow-y: auto; }
+        .confidence-badge { background: var(--bg-accent); padding: 2px 8px; border-radius: 12px; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 API Test Automation Dashboard</h1>
+        <p style="text-align: center; color: var(--text-secondary);">Real API testing with confidence scores</p>
+
+        <div style="display: flex; justify-content: center; gap: 10px; margin: 20px 0;">
+            <button onclick="runTests()">▶ Run All Tests</button>
+            <button onclick="addNewApi()">➕ Add New API</button>
+            <button onclick="toggleTheme()" id="themeToggle">🌙 Dark</button>
+        </div>
+
+        <!-- Stats -->
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 20px;">
+            <div class="stat-box"><div class="stat-value" id="totalTests">0</div><div class="stat-label">Total</div></div>
+            <div class="stat-box"><div class="stat-value test-pass" id="passedTests">0</div><div class="stat-label">Passed</div></div>
+            <div class="stat-box"><div class="stat-value test-fail" id="failedTests">0</div><div class="stat-label">Failed</div></div>
+            <div class="stat-box"><div class="stat-value" id="accuracy">0%</div><div class="stat-label">Accuracy</div></div>
+            <div class="stat-box"><div class="stat-value" id="avgConfidence">0.0</div><div class="stat-label">Confidence</div></div>
+        </div>
+
+        <div style="background: var(--bg-accent); height: 8px; border-radius: 4px; margin: 10px 0;">
+            <div id="progressBar" style="height: 100%; background: var(--accent); width: 0%;"></div>
+        </div>
+
+        <div class="card">
+            <h2 style="color: var(--accent);">📋 Test Results</h2>
+            <div id="apiResults">Loading tests, please wait...</div>
+        </div>
+    </div>
+
+    <!-- Add API Modal -->
+    <div class="modal" id="addApiModal">
+        <div class="modal-content">
+            <h2 style="color: var(--accent);">➕ Add New API</h2>
+            <div class="form-group"><label>API Name *</label><input type="text" id="apiName" placeholder="my-api" required></div>
+            <div class="form-group"><label>Base URL *</label><input type="text" id="baseUrl" placeholder="https://jsonplaceholder.typicode.com"></div>
+            <div class="form-group"><label>Base Path</label><input type="text" id="basePath" placeholder="/api/v1" value="/"></div>
+
+            <h3 style="color: var(--accent); margin: 15px 0 10px;">📍 Endpoints</h3>
+            <div id="endpointsContainer">
+                <div class="endpoint-row form-row">
+                    <select id="method1" onchange="toggleBodyField(1)">
+                        <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option>
+                    </select>
+                    <input type="text" id="path1" placeholder="/endpoint/path" value="/posts">
+                </div>
+            </div>
+            <button onclick="addEndpointRow()" style="background: #4CAF50;">➕ Add Endpoint</button>
+
+            <h3 style="color: var(--accent); margin: 15px 0 10px;">🔐 Authentication</h3>
+            <div class="form-group"><label>Auth Type</label>
+                <select id="authType" onchange="document.getElementById('authFields').style.display = this.value !== 'none' ? 'block' : 'none'">
+                    <option value="none">None</option><option value="basic">Basic Auth</option><option value="bearer">Bearer Token</option><option value="apikey">API Key</option>
+                </select>
+            </div>
+            <div id="authFields" style="display: none;">
+                <div class="form-row">
+                    <div class="form-group"><label>Client ID</label><input type="text" id="clientId"></div>
+                    <div class="form-group"><label>Client Secret</label><input type="password" id="clientSecret"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>API Key Header</label><input type="text" id="apiKeyHeader"></div>
+                    <div class="form-group"><label>API Key Value</label><input type="text" id="apiKeyValue"></div>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; text-align: right;">
+                <button onclick="saveApi()" style="background: #4CAF50;">💾 Save & Run Tests</button>
+                <button onclick="closeModal()" style="background: #f44336;">❌ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let savedApis = JSON.parse(localStorage.getItem('testApis') || '[]');
+        let testResults = [];
+        let endpointCount = 1;
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const btn = document.getElementById('themeToggle');
+            btn.textContent = document.body.classList.contains('light-mode') ? '☀️ Light' : '🌙 Dark';
+        }
+
+        function addNewApi() {
+            document.getElementById('addApiModal').style.display = 'block';
+            endpointCount = 1;
+        }
+
+        function closeModal() {
+            document.getElementById('addApiModal').style.display = 'none';
+        }
+
+        function addEndpointRow() {
+            endpointCount++;
+            const div = document.createElement('div');
+            div.className = 'endpoint-row form-row';
+            div.innerHTML = `
+                <select id="method${endpointCount}" onchange="toggleBodyField(${endpointCount})">
+                    <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option>
+                </select>
+                <input type="text" id="path${endpointCount}" placeholder="/endpoint/path" value="/">
+                <textarea id="body${endpointCount}" placeholder='{"key":"value"}' style="width:100%;display:none;margin-top:5px;"></textarea>
+            `;
+            document.getElementById('endpointsContainer').appendChild(div);
+        }
+
+        function toggleBodyField(idx) {
+            const method = document.getElementById(`method${idx}`).value;
+            const bodyField = document.getElementById(`body${idx}`);
+            if (method === 'POST' || method === 'PUT') {
+                bodyField.style.display = 'block';
+            } else {
+                bodyField.style.display = 'none';
+            }
+        }
+
+        async function runTests() {
+            document.getElementById('progressBar').style.width = '50%';
+            document.getElementById('apiResults').innerHTML = '<p style="color: var(--accent);">⏳ Running tests...</p>';
+
+            const allTests = [];
+            for (const api of savedApis) {
+                const endpoints = api.endpoints ? api.endpoints.split(',').map(e => e.trim()) : [];
+                const methods = api.methods ? api.methods.split(',') : [];
+
+                endpoints.forEach((ep, idx) => {
+                    const method = methods[idx] || 'GET';
+                    const body = api.bodies ? api.bodies[idx] : null;
+
+                    allTests.push({ api: api.name, method, endpoint: ep, body, url: api.baseUrl + api.basePath + ep });
+                });
+            }
+
+            // Actually test endpoints
+            for (let i = 0; i < allTests.length; i++) {
+                const t = allTests[i];
+                try {
+                    const response = await fetch('/api/test-config/test-endpoint', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: t.url, method: t.method, body: t.body })
+                    });
+                    const data = await response.json();
+                    allTests[i] = { ...t, ...data, status: data.status || (data.statusCode >= 200 && data.statusCode < 300 ? 'PASS' : 'FAIL') };
+                } catch (e) {
+                    allTests[i].status = 'ERROR';
+                    allTests[i].error = e.message;
+                }
+            }
+
+            testResults = allTests;
+            renderResults();
+        }
+
+        async function saveApi() {
+            const api = {
+                name: document.getElementById('apiName').value.trim(),
+                baseUrl: document.getElementById('baseUrl').value.trim(),
+                basePath: document.getElementById('basePath').value.trim(),
+                authType: document.getElementById('authType').value,
+                endpoints: [],
+                methods: [],
+                bodies: []
+            };
+
+            if (!api.name || !api.baseUrl) {
+                alert('Enter API name and URL');
+                return;
+            }
+
+            // Collect endpoints
+            for (let i = 1; i <= endpointCount; i++) {
+                const method = document.getElementById(`method${i}`)?.value;
+                const path = document.getElementById(`path${i}`)?.value?.trim();
+                const body = document.getElementById(`body${i}`)?.value?.trim();
+
+                if (path && path !== '/') {
+                    api.endpoints.push(path);
+                    api.methods.push(method);
+                    api.bodies.push(body || '');
+                }
+            }
+
+            if (api.endpoints.length === 0) {
+                api.endpoints = ['/'];
+                api.methods = ['GET'];
+                api.bodies = [''];
+            }
+
+            savedApis.push(api);
+            localStorage.setItem('testApis', JSON.stringify(savedApis));
+            closeModal();
+
+            // Run tests immediately
+            document.getElementById('progressBar').style.width = '50%';
+            document.getElementById('apiResults').innerHTML = '<p style="color: var(--accent);">⏳ Testing your API...</p>';
+
+            await runTests();
+        }
+
+        function renderResults() {
+            const total = testResults.length;
+            const passed = testResults.filter(t => t.status === 'PASS').length;
+            const failed = testResults.filter(t => t.status !== 'PASS').length;
+            const avgConf = total > 0 ? (testResults.reduce((s, t) => s + (t.confidenceScore || 0), 0) / total).toFixed(2) : 0;
+
+            document.getElementById('totalTests').textContent = total;
+            document.getElementById('passedTests').textContent = passed;
+            document.getElementById('failedTests').textContent = failed;
+            document.getElementById('accuracy').textContent = total > 0 ? Math.round((passed / total) * 100) + '%' : '0%';
+            document.getElementById('avgConfidence').textContent = avgConf;
+
+            if (total === 0) {
+                document.getElementById('apiResults').innerHTML = '<p style="color: var(--text-secondary);">No tests. Add APIs above.</p>';
+                document.getElementById('progressBar').style.width = '0%';
+                return;
+            }
+
+            const apisGrouped = {};
+            testResults.forEach(t => {
+                if (!apisGrouped[t.api]) apisGrouped[t.api] = [];
+                apisGrouped[t.api].push(t);
+            });
+
+            let html = '';
+            for (const [apiName, tests] of Object.entries(apisGrouped)) {
+                html += `<div class="api-item"><div class="api-name">${apiName}</div>`;
+                tests.forEach(t => {
+                    const statusClass = t.status === 'PASS' ? 'test-pass' : t.status === 'FAIL' ? 'test-fail' : 'test-error';
+                    html += `<div class="test-item" style="display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span><strong>${t.method}</strong> ${t.endpoint} - ${t.name || ''}</span>
+                            <span class="${statusClass}">${t.status}</span>
+                        </div>
+                        <div style="font-size: 0.8em; color: var(--text-secondary); margin-top: 5px;">
+                            Status: ${t.statusCode || 'N/A'} | Duration: ${t.duration || 'N/A'} | Conf: ${t.confidenceScore || 0}
+                        </div>
+                        <small style="color: var(--text-secondary); margin-top: 3px;">${truncate(t.response, 80) || t.error || ''}</small>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+
+            document.getElementById('apiResults').innerHTML = html;
+            document.getElementById('progressBar').style.width = '100%';
+        }
+
+        function truncate(str, len) {
+            return str && str.length > len ? str.substring(0, len) + '...' : str;
+        }
+
+        // Load saved data on start
+        function loadSavedData() {
+            savedApis = JSON.parse(localStorage.getItem('testApis') || '[]');
+            if (savedApis.length > 0) {
+                runTests();
+            }
+        }
+
+        loadSavedData();
+    </script>
+</body>
+</html>

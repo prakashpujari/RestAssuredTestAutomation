@@ -20,7 +20,7 @@ apis:
             type: positive
             expectedStatus: 200
             queryParams:
-              userId: 1
+              userId: "1"
 
       - method: GET
         path: /posts/{id}
@@ -29,9 +29,13 @@ apis:
           - name: get-post-success
             type: positive
             expectedStatus: 200
+            pathParams:
+              id: "1"
           - name: get-post-not-found
             type: negative
             expectedStatus: 404
+            pathParams:
+              id: "999"
 
       - method: POST
         path: /posts
@@ -58,7 +62,7 @@ apis:
             type: positive
             expectedStatus: 200
             queryParams:
-              page: 2
+              page: "2"
 
       - method: GET
         path: /users/{id}
@@ -67,9 +71,13 @@ apis:
           - name: get-user-success
             type: positive
             expectedStatus: 200
+            pathParams:
+              id: "1"
           - name: get-user-not-found
             type: negative
             expectedStatus: 404
+            pathParams:
+              id: "999"
 
       - method: POST
         path: /users
@@ -86,6 +94,8 @@ apis:
           - name: update-user-success
             type: positive
             expectedStatus: 200
+            pathParams:
+              id: "1"
 
       - method: DELETE
         path: /users/{id}
@@ -94,6 +104,8 @@ apis:
           - name: delete-user-success
             type: positive
             expectedStatus: 204
+            pathParams:
+              id: "1"
 
   # Public APIs Directory
   # https://api.publicapis.org
@@ -135,6 +147,9 @@ apis:
 
   # Your internal APIs (existing)
   - name: customers
+    basePath: /
+    baseUrl: http://localhost:8089
+    endpoints:
       - method: GET
         path: /customers/{id}
         description: Get customer by ID
@@ -145,9 +160,13 @@ apis:
             headers:
               client_id: ${env:CLIENT_ID}
               client_secret: ${env:CLIENT_SECRET}
+            pathParams:
+              id: "1"
           - name: get-by-id-not-found
             type: negative
             expectedStatus: 404
+            pathParams:
+              id: "999"
 
       - method: POST
         path: /customers
@@ -169,6 +188,8 @@ apis:
           - name: update-success
             type: positive
             expectedStatus: 200
+            pathParams:
+              id: "1"
 
       - method: DELETE
         path: /customers/{id}
@@ -177,9 +198,12 @@ apis:
           - name: delete-success
             type: positive
             expectedStatus: 204
+            pathParams:
+              id: "1"
 
   - name: orders
     basePath: /orders
+    baseUrl: http://localhost:8089
     endpoints:
       - method: GET
         path: /orders
