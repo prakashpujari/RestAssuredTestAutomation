@@ -2,6 +2,182 @@
 
 Enterprise-grade API testing framework for MuleSoft APIs using RestAssured with support for MuleSoft 4.6 → 4.9 upgrade validation.
 
+## 🏗️ Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            TEST EXECUTION FLOW                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│                  │     │                  │     │                  │
+│   REST ASSURED   │────▶│    TEST CLASS    │────▶│   WIREMOCK       │
+│    FRAMEWORK     │     │   (JUnit 5)      │     │   (Mock Server)  │
+│                  │     │                  │     │                  │
+└──────────────────┘     └──────────────────┘     └────────┬─────────┘
+                                                             │
+                                                             ▼
+                                                    ┌──────────────────┐
+                                                    │                  │
+                                                    │   REAL API       │
+                                                    │  (Target Mule)   │
+                                                    │                  │
+                                                    └──────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          FRAMEWORK COMPONENTS                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│  CORE LAYER (src/test/java/com/company/api/core/)                             │
+├───────────────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐          │
+│  │ BaseApiTest      │  │ ApiConfig        │  │ RetryFilter      │          │
+│  │ - WireMock setup │  │ - Configures     │  │ - Retry logic    │          │
+│  │ - Test lifecycle │  │   filters        │  │ - 3 retries      │          │
+│  └──────────────────┘  │ - Timeout        │  └──────────────────┘          │
+│                        │ - Logging        │                              │
+│  ┌──────────────────┐  │ - Base URL       │  ┌──────────────────┐          │
+│  │ CorrelationId    │  └──────────────────┘  │ ClientHeader     │          │
+│  │ Filter           │                        │ Filter           │          │
+│  │ - Adds trace ID  │  ┌──────────────────┐  │ - client_id      │          │
+│  └──────────────────┘  │ Environment      │  │ - client_secret  │          │
+│                        │ Resolver         │  └──────────────────┘          │
+│                        │ - env.url prop   │                              │
+│                        └──────────────────┘                              │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│  BUILDER LAYER (src/test/java/com/company/api/builders/)                     │
+├───────────────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────┐                                                       │
+│  │ CustomerRequestBuilder                        │                          │
+│  │ - Fluent API                                 │                          │
+│  │ - withId(), withName(), withEmail()          │                          │
+│  │ - withoutEmail(), empty(), withLongValues()  │                          │
+│  └──────────────────┘                                                       │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│  MODEL LAYER (src/test/java/com/company/api/models/)                          │
+├───────────────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────┐                                                       │
+│  │ Customer         │  (POJO for request/response)                          │
+│  │ - id, name, email│                                                       │
+│  │ - getters/setters│                                                       │
+│  └──────────────────┘                                                       │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────────────┐
+│  TEST LAYER (src/test/java/com/company/api/tests/)                            │
+├───────────────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────┐  ┌──────────────────┐                               │
+│  │ CustomerApiTest  │  │ CustomerApiTest  │                               │
+│  │ - Original       │  │ MuleSoft49       │                               │
+│  │ - 14 tests       │  │ - 23 tests       │                               │
+│  └──────────────────┘  └──────────────────┘                               │
+│                                                                              │
+│  ┌──────────────────┐  ┌──────────────────┐                               │
+│  │ ApiTestGenerator │  │ ExcelExporter    │                               │
+│  │ - Auto generates │  │ - Exports to     │                               │
+│  │   test cases     │  │   Excel          │                               │
+│  └──────────────────┘  └──────────────────┘                               │
+└───────────────────────────────────────────────────────────────────────────────┘
+```
+
+## 🔄 Test Execution Flow
+
+```
+User Input
+    │
+    ▼
+┌─────────────────┐
+│   UI FORM       │
+│ - Endpoint      │
+│ - Method        │
+│ - Auth Type     │
+│ - Request Body  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ ApiTestGenerator│
+│ - Builds config │
+│ - Runs 3 tests  │
+│   (valid,       │
+│   invalid,      │
+│   no-auth)      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│   REST ASSURED  │
+│ - Sends HTTP    │
+│ - Captures      │
+│   response      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ TestResult List │
+│ - 3 results     │
+│ - Status, Code, │
+│   Duration      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ ExcelExporter   │
+│ - Writes to     │
+│   .xlsx file    │
+└─────────────────┘
+```
+
+## 📊 Test Categories Breakdown
+
+```
+CustomerApiTestMuleSoft49 (23 tests)
+├── Positive Tests (5)
+│   ├── listCustomers
+│   ├── getCustomerById
+│   ├── createCustomer
+│   ├── updateCustomer
+│   └── deleteCustomer
+│
+├── Negative Tests (6)
+│   ├── getNonExistentCustomer (404)
+│   ├── createCustomerMissingEmail (400)
+│   ├── createCustomerInvalidEmail (400)
+│   ├── createCustomerEmptyBody (400)
+│   ├── createCustomerInvalidJson (400)
+│   └── createCustomerLongValues (boundary)
+│
+├── Policy Tests (5)
+│   ├── missingClientId (401)
+│   ├── invalidClientId (401)
+│   ├── missingClientSecret (401)
+│   ├── invalidClientSecret (403)
+│   └── invalidCredentials (401)
+│
+├── Rate Limiting (1)
+│   └── rateLimitingTriggered (429)
+│
+├── CORS Tests (1)
+│   └── corsPreflight (200)
+│
+├── Server Errors (2)
+│   ├── serverError (500)
+│   └── serviceUnavailable (503)
+│
+├── Retry Logic (1)
+│   └── retryAfterHeader
+│
+└── Validation (2)
+    ├── responseSchemaValidation
+    └── generatedIdValidation
+```
+
 ## ✨ Features
 
 - **WireMock Integration** - Mock API endpoints for testing
