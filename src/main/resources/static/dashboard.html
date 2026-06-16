@@ -7,14 +7,14 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; }
+        .container { max-width: 1200px; margin: 0 auto; }
         h1 { color: #333; margin-bottom: 10px; }
         .subtitle { color: #666; margin-bottom: 30px; }
         .form-section, .result-section { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: 500; color: #555; }
         input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
-        textarea { font-family: monospace; }
+        textarea { font-family: monospace; min-height: 80px; }
         .btn { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; }
         .btn:hover { background: #0056b3; }
         .btn:disabled { background: #ccc; cursor: not-allowed; }
@@ -34,6 +34,14 @@
         .positive { background: #d4edda; color: #155724; }
         .negative { background: #f8d7da; color: #721c24; }
         .policy { background: #fff3cd; color: #856404; }
+        .progress-bar { height: 20px; background: #e9ecef; border-radius: 10px; overflow: hidden; margin: 5px 0; }
+        .progress-fill { height: 100%; transition: width 0.3s; }
+        .progress-pass { background: #28a745; }
+        .progress-fail { background: #dc3545; }
+        .response-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .response-box { background: #f8f9fa; padding: 10px; border-radius: 4px; }
+        .response-box h4 { font-size: 12px; color: #666; margin-bottom: 5px; }
+        pre { font-size: 11px; white-space: pre-wrap; word-break: break-all; }
     </style>
 </head>
 <body>
@@ -118,6 +126,11 @@
                 <textarea id="requestBody">{"name": "Test Product", "price": 99.99}</textarea>
             </div>
 
+            <div class="form-group">
+                <label>Expected Response File Path (optional)</label>
+                <input type="text" id="expectedResponsePath" placeholder="target/expected-response.json">
+            </div>
+
             <button class="btn" onclick="runTests()">▶ Generate & Run Tests</button>
         </div>
 
@@ -126,7 +139,9 @@
         <div id="resultSection" class="result-section" style="display:none;">
             <h3>Test Results</h3>
             <div id="resultSummary"></div>
+            <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width:0%"></div></div>
             <table id="resultsTable"></table>
+            <div id="responseComparison"></div>
         </div>
     </div>
 
@@ -148,6 +163,7 @@
             const endpoint = document.getElementById('endpoint').value;
             const method = document.getElementById('method').value;
             const authType = document.getElementById('authType').value;
+            const expectedPath = document.getElementById('expectedResponsePath').value;
 
             if (!endpoint) {
                 alert('Please enter endpoint URL');
@@ -157,7 +173,6 @@
             document.getElementById('loading').style.display = 'block';
             document.getElementById('resultSection').style.display = 'none';
 
-            // Collect auth credentials
             let clientId = '', clientSecret = '', tokenUrl = '', apiKeyHeader = '', apiKeyValue = '';
             if (authType === 'BASIC_AUTH') {
                 clientId = document.getElementById('clientId').value;
@@ -174,7 +189,6 @@
             const requestBody = document.getElementById('requestBody').value;
 
             try {
-                // Run all test types
                 const tests = [
                     { name: 'Positive Test', type: 'positive', expectedStatus: [200, 201, 204] },
                     { name: 'Negative Test', type: 'negative', expectedStatus: [400, 404] },
@@ -182,13 +196,17 @@
                 ];
 
                 const results = [];
+                let passed = 0;
+
                 for (const test of tests) {
                     const result = await runSingleTest(endpoint, method, authType, clientId, clientSecret, tokenUrl, apiKeyHeader, apiKeyValue, requestBody, test);
                     result.testType = test.type;
                     results.push(result);
+                    if (result.status === 'PASS') passed++;
                 }
 
-                displayResults(results);
+                updateProgress(passed, tests.length);
+                displayResults(results, endpoint, method, requestBody);
             } catch (err) {
                 alert('Error: ' + err.message);
             } finally {
@@ -205,11 +223,7 @@
                 headers[apiKeyHeader] = apiKeyValue;
             }
 
-            const options = {
-                method: method,
-                headers: headers
-            };
-
+            const options = { method: method, headers: headers };
             if ((method === 'POST' || method === 'PUT') && body) {
                 options.body = body;
             }
@@ -218,12 +232,8 @@
             const response = await fetch(endpoint, options);
             const duration = performance.now() - start;
 
-            let responseData = '';
-            try {
-                responseData = await response.json();
-            } catch (e) {
-                responseData = { message: 'Non-JSON response' };
-            }
+            let responseData = {};
+            try { responseData = await response.json(); } catch (e) { responseData = { message: 'Non-JSON response' }; }
 
             const passed = testConfig.expectedStatus.includes(response.status);
 
@@ -231,16 +241,25 @@
                 endpoint: endpoint,
                 method: method,
                 statusCode: response.status,
-                response: JSON.stringify(responseData).substring(0, 200),
+                response: responseData,
+                responseStr: JSON.stringify(responseData).substring(0, 200),
                 duration: Math.round(duration) + 'ms',
                 status: passed ? 'PASS' : 'FAIL',
                 testType: testConfig.type
             };
         }
 
-        function displayResults(results) {
+        function updateProgress(passed, total) {
+            const pct = Math.round((passed / total) * 100);
+            const bar = document.getElementById('progressFill');
+            bar.style.width = pct + '%';
+            bar.className = 'progress-fill ' + (pct === 100 ? 'progress-pass' : pct > 0 ? 'progress-pass' : 'progress-fail');
+        }
+
+        function displayResults(results, endpoint, method, requestBody) {
             const resultSection = document.getElementById('resultSection');
             const resultsTable = document.getElementById('resultsTable');
+            const responseComp = document.getElementById('responseComparison');
 
             resultSection.style.display = 'block';
 
@@ -270,6 +289,21 @@
                         </tr>
                     `).join('')}
                 </tbody>
+            `;
+
+            // Response comparison
+            responseComp.innerHTML = `
+                <h4 style="margin-top:20px;">Request vs Response</h4>
+                <div class="response-compare">
+                    <div class="response-box">
+                        <h4>📤 Request</h4>
+                        <pre>${method} ${endpoint}\n${requestBody || '(no body)'}</pre>
+                    </div>
+                    <div class="response-box">
+                        <h4>📥 Actual Response</h4>
+                        <pre>${JSON.stringify(results[0]?.response || {}, null, 2)}</pre>
+                    </div>
+                </div>
             `;
         }
     </script>
