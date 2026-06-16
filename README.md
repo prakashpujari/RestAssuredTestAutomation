@@ -1,408 +1,347 @@
 # 🚀 RestAssured API Test Automation Framework
 
-Enterprise-grade API testing framework for MuleSoft APIs using RestAssured with support for MuleSoft 4.6 → 4.9 upgrade validation.
+A web-based API testing dashboard backed by a Spring Boot application. It helps business users, testers, and developers run API requests, validate responses, compare expected vs actual payloads, and understand results without writing test code.
+
+## 🌐 Live Application
+
+The application is deployed on Render:
+
+```text
+https://rest-assured-test-automation.onrender.com
+```
+
+Dashboard:
+
+```text
+https://rest-assured-test-automation.onrender.com/dashboard.html
+```
+
+Health check:
+
+```text
+https://rest-assured-test-automation.onrender.com/api/test-config/health
+```
+
+## 🎯 Purpose of the App
+
+This app is designed to make API testing simple and repeatable.
+
+You can use it to:
+
+- Call any REST API endpoint from the browser.
+- Test `GET`, `POST`, `PUT`, and `DELETE` requests.
+- Add authentication using Basic Auth, OAuth2, API Key, Bearer Token, Okta Token, or a raw `Authorization` header.
+- Send JSON request bodies for `POST` and `PUT`.
+- Load expected responses from direct text, a file, or another API/URL.
+- Compare expected vs actual response content.
+- View pass/fail status, HTTP status code, duration, and response details.
+- Avoid duplicate API calls when the expected response URL is the same as the test endpoint.
+- Handle binary responses such as audio streams.
+
+The UI currently runs only the **Positive Test** flow, so the dashboard focuses on happy-path API validation.
 
 ## 🏗️ Architecture Diagram
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                            TEST EXECUTION FLOW                                 │
-└─────────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    User[End User / Tester] --> Dashboard[Static UI Dashboard<br/>dashboard.html]
 
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│                  │     │                  │     │                  │
-│   REST ASSURED   │────▶│    TEST CLASS    │────▶│   WIREMOCK       │
-│    FRAMEWORK     │     │   (JUnit 5)      │     │   (Mock Server)  │
-│                  │     │                  │     │                  │
-└──────────────────┘     └──────────────────┘     └────────┬─────────┘
-                                                             │
-                                                             ▼
-                                                    ┌──────────────────┐
-                                                    │                  │
-                                                    │   REAL API       │
-                                                    │  (Target Mule)   │
-                                                    │                  │
-                                                    └──────────────────┘
+    Dashboard --> BrowserFetch[Browser fetch API]
+    BrowserFetch --> SpringBoot[Spring Boot App<br/>Render Web Service]
+    SpringBoot --> StaticAssets[Serves dashboard.html]
+    SpringBoot --> Health[Health API<br/>/api/test-config/health]
 
+    Dashboard --> TargetAPI[Target API Endpoint<br/>GET/POST/PUT/DELETE]
+    TargetAPI --> Response[API Response<br/>JSON, text, or binary]
+    Response --> Dashboard
 
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                          FRAMEWORK COMPONENTS                                   │
-└─────────────────────────────────────────────────────────────────────────────────┘
+    Dashboard --> ExpectedSource[Expected Response Source<br/>Direct text, file, or API/URL]
+    ExpectedSource --> Comparison[Expected vs Actual Comparison]
+    Comparison --> Results[Test Results UI<br/>Status, code, duration, response]
 
-┌───────────────────────────────────────────────────────────────────────────────┐
-│  CORE LAYER (src/test/java/com/company/api/core/)                             │
-├───────────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐          │
-│  │ BaseApiTest      │  │ ApiConfig        │  │ RetryFilter      │          │
-│  │ - WireMock setup │  │ - Configures     │  │ - Retry logic    │          │
-│  │ - Test lifecycle │  │   filters        │  │ - 3 retries      │          │
-│  └──────────────────┘  │ - Timeout        │  └──────────────────┘          │
-│                        │ - Logging        │                              │
-│  ┌──────────────────┐  │ - Base URL       │  ┌──────────────────┐          │
-│  │ CorrelationId    │  └──────────────────┘  │ ClientHeader     │          │
-│  │ Filter           │                        │ Filter           │          │
-│  │ - Adds trace ID  │  ┌──────────────────┐  │ - client_id      │          │
-│  └──────────────────┘  │ Environment      │  │ - client_secret  │          │
-│                        │ Resolver         │  └──────────────────┘          │
-│                        │ - env.url prop   │                              │
-│                        └──────────────────┘                              │
-└───────────────────────────────────────────────────────────────────────────────┘
+    subgraph JavaTestFramework[Java Test Automation Framework]
+        RestAssured[Rest Assured]
+        JUnit[JUnit 5]
+        WireMock[WireMock Mock Server]
+        Builders[Request Builders]
+        Models[Models / Config]
+    end
 
-┌───────────────────────────────────────────────────────────────────────────────┐
-│  BUILDER LAYER (src/test/java/com/company/api/builders/)                     │
-├───────────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────┐                                                       │
-│  │ CustomerRequestBuilder                        │                          │
-│  │ - Fluent API                                 │                          │
-│  │ - withId(), withName(), withEmail()          │                          │
-│  │ - withoutEmail(), empty(), withLongValues()  │                          │
-│  └──────────────────┘                                                       │
-└───────────────────────────────────────────────────────────────────────────────┘
-
-┌───────────────────────────────────────────────────────────────────────────────┐
-│  MODEL LAYER (src/test/java/com/company/api/models/)                          │
-├───────────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────┐                                                       │
-│  │ Customer         │  (POJO for request/response)                          │
-│  │ - id, name, email│                                                       │
-│  │ - getters/setters│                                                       │
-│  └──────────────────┘                                                       │
-└───────────────────────────────────────────────────────────────────────────────┘
-
-┌───────────────────────────────────────────────────────────────────────────────┐
-│  TEST LAYER (src/test/java/com/company/api/tests/)                            │
-├───────────────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────┐  ┌──────────────────┐                               │
-│  │ CustomerApiTest  │  │ CustomerApiTest  │                               │
-│  │ - Original       │  │ MuleSoft49       │                               │
-│  │ - 14 tests       │  │ - 23 tests       │                               │
-│  └──────────────────┘  └──────────────────┘                               │
-│                                                                              │
-│  ┌──────────────────┐  ┌──────────────────┐                               │
-│  │ ApiTestGenerator │  │ ExcelExporter    │                               │
-│  │ - Auto generates │  │ - Exports to     │                               │
-│  │   test cases     │  │   Excel          │                               │
-│  └──────────────────┘  └──────────────────┘                               │
-└───────────────────────────────────────────────────────────────────────────────┘
+    SpringBoot -. supports backend APIs .-> JavaTestFramework
 ```
 
-## 🔄 Test Execution Flow
+## 🧩 Main Components
 
-```
-User Input
-    │
-    ▼
-┌─────────────────┐
-│   UI FORM       │
-│ - Endpoint      │
-│ - Method        │
-│ - Auth Type     │
-│ - Request Body  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ ApiTestGenerator│
-│ - Builds config │
-│ - Runs 3 tests  │
-│   (valid,       │
-│   invalid,      │
-│   no-auth)      │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   REST ASSURED  │
-│ - Sends HTTP    │
-│ - Captures      │
-│   response      │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ TestResult List │
-│ - 3 results     │
-│ - Status, Code, │
-│   Duration      │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ ExcelExporter   │
-│ - Writes to     │
-│   .xlsx file    │
-└─────────────────┘
+| Component | Location | Purpose |
+|---|---|---|
+| Spring Boot App | `src/main/java/com/company/api` | Runs the backend and serves the UI |
+| UI Dashboard | `src/main/resources/static/dashboard.html` | Form-based API testing interface |
+| API Config Controller | `src/main/java/com/company/api/config/ApiTestConfigController.java` | Exposes API test configuration endpoints |
+| Java Test Framework | `src/test/java/com/company/api` | Rest Assured, JUnit, WireMock, builders, and generated tests |
+| Render Config | `render.yaml` | Defines the Render web service |
+| Dockerfile | `Dockerfile` | Builds the Spring Boot app for Render |
+| Screenshots | `docs/screenshots/` | Playwright-captured UI pages |
+
+## 🖥️ UI Architecture Flow
+
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant UI as Dashboard UI
+    participant API as Target API
+    participant Expected as Expected Response Source
+    participant UI as Dashboard UI
+
+    User->>UI: Enter endpoint, method, auth, body
+    User->>UI: Select expected response source
+    User->>UI: Click Generate & Run Tests
+    UI->>API: Send configured HTTP request
+    API-->>UI: Return actual response
+    UI->>Expected: Load expected response if needed
+    Expected-->>UI: Return expected payload
+    UI->>UI: Compare expected vs actual
+    UI-->>User: Show pass/fail result and response comparison
 ```
 
-## 📊 Test Categories Breakdown
+## 🚀 How to Use the App - Step by Step
 
-```
-CustomerApiTestMuleSoft49 (23 tests)
-├── Positive Tests (5)
-│   ├── listCustomers
-│   ├── getCustomerById
-│   ├── createCustomer
-│   ├── updateCustomer
-│   └── deleteCustomer
-│
-├── Negative Tests (6)
-│   ├── getNonExistentCustomer (404)
-│   ├── createCustomerMissingEmail (400)
-│   ├── createCustomerInvalidEmail (400)
-│   ├── createCustomerEmptyBody (400)
-│   ├── createCustomerInvalidJson (400)
-│   └── createCustomerLongValues (boundary)
-│
-├── Policy Tests (5)
-│   ├── missingClientId (401)
-│   ├── invalidClientId (401)
-│   ├── missingClientSecret (401)
-│   ├── invalidClientSecret (403)
-│   └── invalidCredentials (401)
-│
-├── Rate Limiting (1)
-│   └── rateLimitingTriggered (429)
-│
-├── CORS Tests (1)
-│   └── corsPreflight (200)
-│
-├── Server Errors (2)
-│   ├── serverError (500)
-│   └── serviceUnavailable (503)
-│
-├── Retry Logic (1)
-│   └── retryAfterHeader
-│
-└── Validation (2)
-    ├── responseSchemaValidation
-    └── generatedIdValidation
+### Step 1: Open the Dashboard
+
+Open:
+
+```text
+https://rest-assured-test-automation.onrender.com/dashboard.html
 ```
 
-## ✨ Features
+You should see the API configuration form.
 
-- **WireMock Integration** - Mock API endpoints for testing
-- **Multiple Authentication** - Basic Auth, OAuth2, API Key, No Auth
-- **Excel Export** - Test results exported to Excel format
-- **UI Dashboard** - Web-based interface for API testing
-- **MuleSoft 4.9 Ready** - Validated for MuleSoft 4.6 → 4.9 upgrade
+### Step 2: Enter the API Endpoint
 
-## 📦 Project Structure
+Enter the full API URL in **Endpoint URL**.
 
-```
-src/
-├── main/
-│   ├── java/com/company/api/
-│   │   ├── Application.java
-│   │   ├── config/              # Configuration classes
-│   │   ├── controller/          # REST controllers
-│   │   ├── core/              # Core test components
-│   │   ├── model/             # Data models
-│   │   └── service/           # Business services
-│   └── resources/
-│       ├── static/
-│       │   └── dashboard.html   # Web UI
-│       └── application.properties
-└── test/
-    ├── java/com/company/api/
-    │   ├── builders/            # Test data builders
-    │   ├── core/                # Base test classes
-    │   ├── generator/           # Automated test generator
-    │   ├── models/              # Test models
-    │   └── tests/               # Test classes
-    └── resources/
-        └── config/apis.yaml     # API definitions
+Example:
+
+```text
+https://jsonplaceholder.typicode.com/posts/1
 ```
 
-## 🚀 Quick Start
+### Step 3: Select the HTTP Method
 
-### Run Tests
+Choose one of:
+
+- `GET`
+- `POST`
+- `PUT`
+- `DELETE`
+
+For `POST` and `PUT`, the request body field appears automatically.
+
+### Step 4: Select Authentication Type
+
+Choose the correct authentication option:
+
+| Option | When to Use |
+|---|---|
+| No Auth | Public APIs |
+| Basic Auth | APIs using username/password or client ID/secret |
+| OAuth2 | OAuth token flow configuration |
+| API Key | APIs that require a custom header key/value |
+| Bearer Token | APIs that accept `Authorization: Bearer <token>` |
+| Okta Token | APIs secured by Okta OAuth client credentials |
+| Raw Authorization Header | APIs where you already have the full header value, such as `Basic ...` |
+
+For the Inworld TTS endpoint, use **Raw Authorization Header** and paste the full value starting with `Basic ...`.
+
+### Step 5: Add Request Body if Needed
+
+For `POST` or `PUT`, add JSON in **Request Body**.
+
+Example:
+
+```json
+{
+  "name": "Test Product",
+  "price": 99.99
+}
+```
+
+### Step 6: Select Expected Response Source
+
+Choose how the app should load the expected response.
+
+| Expected Response Source | What It Does |
+|---|---|
+| Direct Text Content | Paste expected JSON/text directly |
+| From API or URL | Fetch expected response from a URL |
+| From Local File | Upload a `.json` or `.txt` file |
+
+If you choose **From API or URL** and use the same endpoint as the test endpoint, the app reuses the actual response instead of calling the API again. This avoids duplicate calls and rate-limit errors such as `429`.
+
+### Step 7: Run the Test
+
+Click:
+
+```text
+▶ Generate & Run Tests
+```
+
+### Step 8: Review Results
+
+The result section shows:
+
+- Endpoint
+- Method
+- PASS/FAIL status
+- HTTP status code
+- Duration
+- Test type
+- Expected vs Actual response comparison
+
+For binary responses, such as audio streams, the UI shows response metadata like content type, response size, and a preview instead of trying to display the full binary payload.
+
+## 📸 UI Screenshots
+
+The screenshots were captured with Playwright from the live Render URL.
+
+### 1. Initial Dashboard
+
+![Initial Dashboard](docs/screenshots/01-dashboard-initial.png)
+
+### 2. Bearer Token Authentication Option
+
+![Bearer Token Authentication](docs/screenshots/02-auth-options.png)
+
+### 3. Expected Response From API or URL
+
+![Expected Response Source](docs/screenshots/03-expected-response-source.png)
+
+### 4. Successful API Test Result
+
+![Successful Result](docs/screenshots/04-results-success.png)
+
+## 🖥️ Local Run Steps
+
+### Prerequisites
+
+- Java 17
+- Maven
+
+### Run the App Locally
+
+```bash
+mvn spring-boot:run
+```
+
+Open:
+
+```text
+http://localhost:8080/dashboard.html
+```
+
+### Run Java Tests Locally
+
 ```bash
 mvn test
 ```
 
-### Run Specific Test
+Run a specific test class:
+
 ```bash
 mvn test -Dtest=CustomerApiTestMuleSoft49
 ```
 
-### Start UI Dashboard
-```bash
-mvn spring-boot:run
-# Open http://localhost:8080/dashboard.html
+## ☁️ Render Deployment
+
+The app is deployed as a Docker-based Render web service.
+
+Render service:
+
+```text
+https://dashboard.render.com/web/srv-d8oddkernols73cu1p4g
 ```
+
+Deployed app:
+
+```text
+https://rest-assured-test-automation.onrender.com
+```
+
+Deployment files:
+
+```text
+render.yaml
+Dockerfile
+```
+
+When you push changes to `main`, Render automatically deploys the latest commit.
+
+## 📦 Project Structure
+
+```text
+src/
+├── main/
+│   ├── java/com/company/api/
+│   │   ├── Application.java
+│   │   ├── config/
+│   │   ├── controller/
+│   │   ├── core/
+│   │   ├── model/
+│   │   └── service/
+│   └── resources/
+│       ├── static/
+│       │   └── dashboard.html
+│       └── application.properties
+└── test/
+    └── java/com/company/api/
+        ├── builders/
+        ├── core/
+        ├── generator/
+        ├── models/
+        └── tests/
+
+docs/
+├── screenshots/
+│   ├── 01-dashboard-initial.png
+│   ├── 02-auth-options.png
+│   ├── 03-expected-response-source.png
+│   └── 04-results-success.png
+└── capture-ui-screenshots.py
+
+Dockerfile
+render.yaml
+pom.xml
+```
+
+## 🔐 Secrets and Deployment Notes
+
+Do not commit secrets, tokens, `.env` files, private keys, or credential JSON files.
+
+The `.gitignore` file ignores:
+
+- `.env`
+- `.env.*`
+- private key/certificate files
+- credential JSON files
+- `.vercel/`
+- `.render/`
+
+Use Render environment variables or a secure secret manager for production credentials.
 
 ## 🧪 Test Categories
 
-| Category | Tests | Description |
-|----------|-------|-------------|
-| Positive Tests | 5 | Happy path scenarios |
-| Negative Tests | 6 | 400/404 error handling |
-| Policy Tests | 5 | Authentication |
-| Rate Limiting | 1 | 429 responses |
-| CORS Tests | 1 | Preflight handling |
-| Server Errors | 2 | 500/503 responses |
-| Retry Logic | 1 | Retry-After header |
-| Validation | 2 | Schema validation |
+The Java test framework includes:
 
-## 🖥️ Using the UI Dashboard - Step by Step
-
-### Step 1: Start the Application
-```bash
-mvn spring-boot:run
-```
-**Expected Output:**
-```
-Tomcat started on port(s): 8080 (http) with context path ''
-Started Application in X.XXX seconds
-```
-
-### Step 2: Open Dashboard
-Navigate to: **http://localhost:8080/dashboard.html**
-
-**UI Layout:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│  🚀 API Test Generator                                    │
-│  Configure your API and run automated tests                 │
-├─────────────────────────────────────────────────────────────┤
-│  Endpoint URL *  [_____________________________________]   │
-│  HTTP Method     [▼ POST]                                  │
-│  Auth Type       [▼ No Auth]                               │
-│  Client ID       [_____________________________]          │
-│  Client Secret   [_____________________________]          │
-│  Request Body    [_____________________________________]   │
-│                 [_____________________________________]   │
-│                 [_____________________________________]   │
-│                                                           │
-│  [▶ Generate & Run Tests]                                 │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-### Step 3A: Test GET Method (No Authentication)
-
-**Configuration:**
-1. **Endpoint URL**: `https://jsonplaceholder.typicode.com/posts`
-2. **HTTP Method**: `GET` (select from dropdown)
-3. **Authentication Type**: `No Auth` (select from dropdown)
-4. **Request Body**: Leave empty (not needed for GET)
-
-**Click**: `▶ Generate & Run Tests`
-
-**Expected Results:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Test Results                                               │
-├─────────────────────────────────────────────────────────────┤
-│  ✅ 2/2 tests passed                                        │
-│                                                             │
-│  ┌────────────┬────────┬────────┬────────┬────────┐        │
-│  │ Endpoint   │ Method │ Status │ Code   │ Duration│        │
-│  ├────────────┼────────┼────────┼────────┼────────┤        │
-│  │ /posts     │ GET    │ PASS   │ 200    │ 120ms  │        │
-│  │ /posts     │ GET    │ PASS   │ 200    │ 95ms   │        │
-│  └────────────┴────────┴────────┴────────┴────────┘        │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-### Step 3B: Test POST Method (Basic Authentication)
-
-**Configuration:**
-1. **Endpoint URL**: `http://localhost:8089/api/v1/products`
-2. **HTTP Method**: `POST` (select from dropdown)
-3. **Authentication Type**: `Basic Auth` (select from dropdown)
-4. **Client ID**: `test-client`
-5. **Client Secret**: `test-secret`
-6. **Request Body**:
-```json
-{
-  "name": "Test Product",
-  "price": 99.99,
-  "category": "Electronics"
-}
-```
-
-**Click**: `▶ Generate & Run Tests`
-
-**Expected Results:**
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Test Results                                               │
-├─────────────────────────────────────────────────────────────┤
-│  ✅ 3/3 tests passed                                        │
-│                                                             │
-│  ┌─────────────────────────┬────────┬────────┬──────────┐  │
-│  │ Endpoint                │ Method │ Status │ Code     │  │
-│  ├─────────────────────────┼────────┼────────┼──────────┤  │
-│  │ /api/v1/products        │ POST   │ PASS   │ 201      │  │
-│  │ /api/v1/products        │ POST   │ FAIL   │ 400      │  │
-│  │ /api/v1/products        │ POST   │ PASS   │ 401      │  │
-│  └─────────────────────────┴────────┴────────┴──────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-### Step 3C: Test with API Key Authentication
-
-**Configuration:**
-1. **Endpoint URL**: `https://api.example.com/v1/data`
-2. **HTTP Method**: `GET`
-3. **Authentication Type**: `API Key`
-4. **Client ID**: `X-API-Key` (header name)
-5. **Client Secret**: `your-api-key-here`
-6. **Request Body**: Leave empty
-
-**Click**: `▶ Generate & Run Tests`
-
----
-
-## 📊 Excel Export
-
-Test results are automatically saved to:
-```
-target/<sanitized-endpoint-name>-test-results.xlsx
-```
-
-### Excel Columns
-| Column | Description |
-|--------|-------------|
-| Endpoint | Full API URL |
-| Method | HTTP method |
-| Status | PASS/FAIL/ERROR |
-| Status Code | HTTP code |
-| Response Body | Response content |
-| Issue | Error description |
-
----
-
-## 🎯 Quick Reference
-
-| Action | Code |
-|--------|------|
-| Add Basic Auth | Select "Basic Auth", enter Client ID/Secret |
-| Add API Key | Select "API Key", enter Header Name/Value |
-| Test GET | Select GET method, leave body empty |
-| Test POST | Select POST method, add JSON body |
-| No Auth | Select "No Auth" or leave fields empty |
-
----
-
-## 🔄 CI/CD Integration
-
-```bash
-# Run tests in pipeline
-mvn test -Dtest=CustomerApiTestMuleSoft49
-
-# With environment
-mvn test -Dtest=CustomerApiTestMuleSoft49 -Pdev
-```
-
----
+| Category | Description |
+|---|---|
+| Positive Tests | Happy-path API scenarios |
+| Negative Tests | 400/404 error handling |
+| Policy Tests | Authentication and authorization checks |
+| Rate Limiting | 429 response handling |
+| CORS Tests | Preflight handling |
+| Server Errors | 500/503 response handling |
+| Retry Logic | `Retry-After` header handling |
+| Validation | Schema and generated ID validation |
 
 ## 📝 License
 
-Internal use for MuleSoft API testing.
+Internal use for API testing and automation.
