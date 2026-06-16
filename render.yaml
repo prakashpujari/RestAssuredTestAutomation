@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: rest-assured-test-automation
+    env: java
+    region: oregon
+    plan: starter
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/rest-assured-test-automation-1.0.0.jar
+    healthCheckPath: /api/test-config/health
+    envVars:
+      - key: JAVA_VERSION
+        value: 17
+      - key: SERVER_PORT
+        value: ${PORT}

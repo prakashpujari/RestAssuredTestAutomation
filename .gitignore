@@ -21,6 +21,20 @@ replay_pid*.log
 .claude/memory/
 allure-results/
 
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+credentials.json
+service-account.json
+
+# Deployment provider files
+.vercel/
+.render/
+
 # Backups
 *.bak
 *.backup

@@ -75,6 +75,9 @@
                     <option value="BASIC_AUTH">Basic Auth</option>
                     <option value="OAUTH2">OAuth2</option>
                     <option value="API_KEY">API Key</option>
+                    <option value="BEARER_TOKEN">Bearer Token</option>
+                    <option value="OKTA_TOKEN">Okta Token</option>
+                    <option value="RAW_AUTH_HEADER">Raw Authorization Header</option>
                 </select>
             </div>
 
@@ -123,14 +126,70 @@
                 </div>
             </div>
 
+            <div id="bearerTokenFields" class="auth-section" style="display:none;">
+                <div class="form-group">
+                    <label>Bearer Token</label>
+                    <input type="password" id="bearerToken" placeholder="eyJhbGciOi...">
+                </div>
+            </div>
+
+            <div id="oktaTokenFields" class="auth-section" style="display:none;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Okta Token URL</label>
+                        <input type="text" id="oktaTokenUrl" placeholder="https://your-domain.okta.com/oauth2/default/v1/token">
+                    </div>
+                    <div class="form-group">
+                        <label>Scope</label>
+                        <input type="text" id="oktaScope" placeholder="api://default/.default">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Client ID</label>
+                        <input type="text" id="oktaClientId" placeholder="your-okta-client-id">
+                    </div>
+                    <div class="form-group">
+                        <label>Client Secret</label>
+                        <input type="password" id="oktaClientSecret" placeholder="your-okta-client-secret">
+                    </div>
+                </div>
+            </div>
+
+            <div id="rawAuthHeaderFields" class="auth-section" style="display:none;">
+                <div class="form-group">
+                    <label>Authorization Header Value</label>
+                    <input type="password" id="rawAuthorizationHeader" placeholder="Basic ... or Bearer ...">
+                </div>
+            </div>
+
             <div id="bodyField" class="form-group" style="display:none;">
                 <label>Request Body (JSON)</label>
                 <textarea id="requestBody">{"name": "Test Product", "price": 99.99}</textarea>
             </div>
 
             <div class="form-group">
+                <label>Expected Response Source</label>
+                <select id="expectedResponseSource" onchange="toggleExpectedResponseSource()">
+                    <option value="DIRECT_TEXT">Direct Text Content</option>
+                    <option value="API_URL">From API or URL</option>
+                    <option value="LOCAL_FILE">From Local File</option>
+                </select>
+            </div>
+
+            <div id="expectedTextSection" class="form-group">
                 <label>Expected Response (optional - paste JSON for comparison)</label>
                 <textarea id="expectedResponse" placeholder='{"id": 1, "name": "Test"}' style="min-height: 60px;"></textarea>
+            </div>
+
+            <div id="expectedUrlSection" class="form-group" style="display:none;">
+                <label>Expected Response URL</label>
+                <input type="url" id="expectedResponseUrl" placeholder="Leave blank to use the same API endpoint">
+            </div>
+
+            <div id="expectedFileSection" class="form-group" style="display:none;">
+                <label>Expected Response Local File</label>
+                <input type="file" id="expectedResponseFile" accept=".json,.txt">
             </div>
 
             <button class="btn" onclick="runTests()">▶ Generate & Run Tests</button>
@@ -159,6 +218,118 @@
             document.getElementById('basicAuthFields').style.display = authType === 'BASIC_AUTH' ? 'block' : 'none';
             document.getElementById('oauth2Fields').style.display = authType === 'OAUTH2' ? 'block' : 'none';
             document.getElementById('apiKeyFields').style.display = authType === 'API_KEY' ? 'block' : 'none';
+            document.getElementById('bearerTokenFields').style.display = authType === 'BEARER_TOKEN' ? 'block' : 'none';
+            document.getElementById('oktaTokenFields').style.display = authType === 'OKTA_TOKEN' ? 'block' : 'none';
+            document.getElementById('rawAuthHeaderFields').style.display = authType === 'RAW_AUTH_HEADER' ? 'block' : 'none';
+        }
+
+        function toggleExpectedResponseSource() {
+            const source = document.getElementById('expectedResponseSource').value;
+            document.getElementById('expectedTextSection').style.display = source === 'DIRECT_TEXT' ? 'block' : 'none';
+            document.getElementById('expectedUrlSection').style.display = source === 'API_URL' ? 'block' : 'none';
+            document.getElementById('expectedFileSection').style.display = source === 'LOCAL_FILE' ? 'block' : 'none';
+        }
+
+        function normalizeUrl(url) {
+            return url.replace(/\/+$/, '').toLowerCase();
+        }
+
+        function buildRequestOptions(method, authType, clientId, clientSecret, tokenUrl, apiKeyHeader, apiKeyValue, body, bearerToken, oktaAccessToken, rawAuthorizationHeader) {
+            const headers = { 'Content-Type': 'application/json' };
+
+            if (authType === 'BASIC_AUTH' && clientId && clientSecret) {
+                headers['Authorization'] = 'Basic ' + btoa(clientId + ':' + clientSecret);
+            } else if (authType === 'API_KEY' && apiKeyHeader && apiKeyValue) {
+                headers[apiKeyHeader] = apiKeyValue;
+            } else if (rawAuthorizationHeader) {
+                headers['Authorization'] = rawAuthorizationHeader;
+            } else if (bearerToken) {
+                headers['Authorization'] = 'Bearer ' + bearerToken;
+            } else if (oktaAccessToken) {
+                headers['Authorization'] = 'Bearer ' + oktaAccessToken;
+            }
+
+            const options = { method: method, headers: headers };
+            if ((method === 'POST' || method === 'PUT') && body) {
+                options.body = body;
+            }
+
+            return options;
+        }
+
+        async function getExpectedResponseContent(requestConfig) {
+            const source = document.getElementById('expectedResponseSource').value;
+
+            if (source === 'API_URL') {
+                const url = document.getElementById('expectedResponseUrl').value.trim() || requestConfig.endpoint;
+
+                if (normalizeUrl(url) === normalizeUrl(requestConfig.endpoint)) {
+                    const expectedStr = JSON.stringify(requestConfig.actualResponse || {});
+                    let expectedObj = {};
+                    try { expectedObj = expectedStr ? JSON.parse(expectedStr) : {}; } catch (e) {}
+                    return { expectedStr, expectedObj };
+                }
+
+                const options = buildRequestOptions(
+                    requestConfig.method,
+                    requestConfig.authType,
+                    requestConfig.clientId,
+                    requestConfig.clientSecret,
+                    requestConfig.tokenUrl,
+                    requestConfig.apiKeyHeader,
+                    requestConfig.apiKeyValue,
+                    requestConfig.body,
+                    requestConfig.bearerToken,
+                    requestConfig.oktaAccessToken,
+                    requestConfig.rawAuthorizationHeader
+                );
+
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    throw new Error('Unable to load expected response from URL: ' + response.status + ' ' + response.statusText);
+                }
+
+                const expectedStr = await response.text();
+                let expectedObj = {};
+                try { expectedObj = expectedStr ? JSON.parse(expectedStr) : {}; } catch (e) {}
+                return { expectedStr, expectedObj };
+            }
+
+            if (source === 'LOCAL_FILE') {
+                const fileInput = document.getElementById('expectedResponseFile');
+                const file = fileInput.files && fileInput.files[0];
+                if (!file) return { expectedStr: '', expectedObj: {} };
+
+                const expectedStr = await file.text();
+                let expectedObj = {};
+                try { expectedObj = expectedStr ? JSON.parse(expectedStr) : {}; } catch (e) {}
+                return { expectedStr, expectedObj };
+            }
+
+            const expectedStr = document.getElementById('expectedResponse').value.trim();
+            let expectedObj = {};
+            try { expectedObj = expectedStr ? JSON.parse(expectedStr) : {}; } catch (e) {}
+            return { expectedStr, expectedObj };
+        }
+
+        async function getOktaToken(tokenUrl, clientId, clientSecret, scope) {
+            const tokenResponse = await fetch(tokenUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    grant_type: 'client_credentials',
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    scope: scope
+                })
+            });
+
+            if (!tokenResponse.ok) {
+                throw new Error('Unable to get Okta token: ' + tokenResponse.status + ' ' + tokenResponse.statusText);
+            }
+
+            const tokenData = await tokenResponse.json();
+            return tokenData.access_token || tokenData.token || tokenData.id_token;
         }
 
         async function runTests() {
@@ -174,7 +345,7 @@
             document.getElementById('loading').style.display = 'block';
             document.getElementById('resultSection').style.display = 'none';
 
-            let clientId = '', clientSecret = '', tokenUrl = '', apiKeyHeader = '', apiKeyValue = '';
+            let clientId = '', clientSecret = '', tokenUrl = '', apiKeyHeader = '', apiKeyValue = '', bearerToken = '', oktaAccessToken = '', rawAuthorizationHeader = '';
             if (authType === 'BASIC_AUTH') {
                 clientId = document.getElementById('clientId').value;
                 clientSecret = document.getElementById('clientSecret').value;
@@ -185,30 +356,67 @@
             } else if (authType === 'API_KEY') {
                 apiKeyHeader = document.getElementById('apiKeyHeader').value;
                 apiKeyValue = document.getElementById('apiKeyValue').value;
+            } else if (authType === 'BEARER_TOKEN') {
+                bearerToken = document.getElementById('bearerToken').value.trim();
+            } else if (authType === 'RAW_AUTH_HEADER') {
+                rawAuthorizationHeader = document.getElementById('rawAuthorizationHeader').value.trim();
+            } else if (authType === 'OKTA_TOKEN') {
+                tokenUrl = document.getElementById('oktaTokenUrl').value.trim();
+                clientId = document.getElementById('oktaClientId').value.trim();
+                clientSecret = document.getElementById('oktaClientSecret').value.trim();
+                const oktaScope = document.getElementById('oktaScope').value.trim();
+
+                if (!tokenUrl || !clientId || !clientSecret) {
+                    alert('Please provide Okta Token URL, Client ID, and Client Secret');
+                    return;
+                }
+
+                oktaAccessToken = await getOktaToken(tokenUrl, clientId, clientSecret, oktaScope);
+                if (!oktaAccessToken) {
+                    alert('Okta token response did not contain access_token, token, or id_token');
+                    return;
+                }
             }
 
             const requestBody = document.getElementById('requestBody').value;
 
             try {
+                // Only positive test case
                 const tests = [
-                    { name: 'Positive Test', type: 'positive', expectedStatus: [200, 201, 204] },
-                    { name: 'Negative Test', type: 'negative', expectedStatus: [400, 404] },
-                    { name: 'Policy Test', type: 'policy', expectedStatus: [401, 403] }
+                    { name: 'Positive Test', type: 'positive', expectedStatus: [200, 201, 204] }
                 ];
 
                 const results = [];
                 let passed = 0;
 
                 for (const test of tests) {
-                    const result = await runSingleTest(endpoint, method, authType, clientId, clientSecret, tokenUrl, apiKeyHeader, apiKeyValue, requestBody, test);
+                    const result = await runSingleTest(endpoint, method, authType, clientId, clientSecret, tokenUrl, apiKeyHeader, apiKeyValue, requestBody, bearerToken, oktaAccessToken, rawAuthorizationHeader, test);
                     result.testType = test.type;
                     result.expectedStatus = test.expectedStatus.includes(result.statusCode);
                     results.push(result);
                     if (result.status === 'PASS') passed++;
                 }
 
-                updateProgress(passed, tests.length);
-                displayResults(results, endpoint, method, requestBody);
+                const positiveResults = results.filter(r => r.testType === 'positive');
+                const displayResultsList = positiveResults.length > 0 ? positiveResults : results;
+                const requestConfig = {
+                    endpoint,
+                    method,
+                    authType,
+                    clientId,
+                    clientSecret,
+                    tokenUrl,
+                    apiKeyHeader,
+                    apiKeyValue,
+                    bearerToken,
+                    oktaAccessToken,
+                    rawAuthorizationHeader,
+                    body: requestBody,
+                    actualResponse: results[0]?.actual || {}
+                };
+
+                updateProgress(passed, displayResultsList.length);
+                await displayResults(displayResultsList, requestConfig);
             } catch (err) {
                 alert('Error: ' + err.message);
             } finally {
@@ -216,26 +424,41 @@
             }
         }
 
-        async function runSingleTest(endpoint, method, authType, clientId, clientSecret, tokenUrl, apiKeyHeader, apiKeyValue, body, testConfig) {
-            const headers = { 'Content-Type': 'application/json' };
-
-            if (authType === 'BASIC_AUTH' && clientId && clientSecret) {
-                headers['Authorization'] = 'Basic ' + btoa(clientId + ':' + clientSecret);
-            } else if (authType === 'API_KEY' && apiKeyHeader && apiKeyValue) {
-                headers[apiKeyHeader] = apiKeyValue;
-            }
-
-            const options = { method: method, headers: headers };
-            if ((method === 'POST' || method === 'PUT') && body) {
-                options.body = body;
-            }
+        async function runSingleTest(endpoint, method, authType, clientId, clientSecret, tokenUrl, apiKeyHeader, apiKeyValue, body, bearerToken, oktaAccessToken, rawAuthorizationHeader, testConfig) {
+            const options = buildRequestOptions(method, authType, clientId, clientSecret, tokenUrl, apiKeyHeader, apiKeyValue, body, bearerToken, oktaAccessToken, rawAuthorizationHeader);
 
             const start = performance.now();
             const response = await fetch(endpoint, options);
             const duration = performance.now() - start;
 
             let responseData = {};
-            try { responseData = await response.json(); } catch (e) { responseData = { message: 'Non-JSON response' }; }
+            const contentType = response.headers.get('content-type') || '';
+            const responseBuffer = await response.arrayBuffer();
+            const responseBytes = new Uint8Array(responseBuffer);
+
+            if (contentType.includes('application/json') || contentType.includes('text/') || responseBytes.length === 0) {
+                const responseText = new TextDecoder().decode(responseBuffer);
+                try {
+                    responseData = responseText ? JSON.parse(responseText) : {};
+                } catch (e) {
+                    responseData = {
+                        message: 'Non-JSON response',
+                        contentType: contentType || '(none)',
+                        responseSize: responseBytes.length + ' bytes',
+                        preview: responseText.slice(0, 500)
+                    };
+                }
+            } else {
+                const previewBytes = responseBytes.slice(0, 128);
+                const previewBase64 = btoa(String.fromCharCode.apply(null, previewBytes));
+                responseData = {
+                    message: 'Binary response received',
+                    contentType: contentType || '(none)',
+                    responseSize: responseBytes.length + ' bytes',
+                    responseType: 'BINARY',
+                    previewBase64: previewBase64
+                };
+            }
 
             const passed = testConfig.expectedStatus.includes(response.status);
 
@@ -258,7 +481,7 @@
             bar.className = 'progress-fill ' + (passed === total ? 'progress-pass' : 'progress-fail');
         }
 
-        function displayResults(results, endpoint, method, requestBody) {
+        async function displayResults(results, requestConfig) {
             const resultSection = document.getElementById('resultSection');
             const resultsTable = document.getElementById('resultsTable');
             const responseComp = document.getElementById('responseComparison');
@@ -266,7 +489,9 @@
             resultSection.style.display = 'block';
 
             const passed = results.filter(r => r.status === 'PASS').length;
-            const typeColors = { positive: 'positive', negative: 'negative', policy: 'policy' };
+            const typeColors = { positive: 'positive' };
+
+            resultSummary.innerHTML = '<p class="subtitle">Showing only positive test cases.</p>';
 
             resultsTable.innerHTML = `
                 <thead>
@@ -293,19 +518,31 @@
                 </tbody>
             `;
 
-            // Get expected response from textarea
-            const expectedStr = document.getElementById('expectedResponse').value.trim();
-            let expectedObj = {};
-            try { expectedObj = expectedStr ? JSON.parse(expectedStr) : {}; } catch (e) {}
+            // Get expected response from selected source
+            const { expectedStr, expectedObj } = await getExpectedResponseContent(requestConfig);
+            const sourceLabel = {
+                DIRECT_TEXT: 'Direct Text Content',
+                API_URL: 'API or URL',
+                LOCAL_FILE: 'Local File'
+            }[document.getElementById('expectedResponseSource').value];
 
             // Compare actual vs expected
-            const actualStr = JSON.stringify(results[0]?.actual || {});
-            const expectedActualStr = JSON.stringify(expectedObj);
-            const isMatch = actualStr === expectedActualStr || Object.keys(expectedObj).length === 0;
+            const actualStr = JSON.stringify(results[0]?.actual || {}, null, 2);
+            const expectedActualStr = expectedStr || JSON.stringify(expectedObj, null, 2);
+            let isMatch = true;
+            if (expectedStr) {
+                try {
+                    const actualObj = JSON.parse(actualStr);
+                    const parsedExpectedObj = JSON.parse(expectedStr);
+                    isMatch = JSON.stringify(actualObj) === JSON.stringify(parsedExpectedObj);
+                } catch (e) {
+                    isMatch = actualStr === expectedStr;
+                }
+            }
 
             // Response comparison
             responseComp.innerHTML = `
-                <h4 style="margin-top:20px;">Expected vs Actual Response</h4>
+                <h4 style="margin-top:20px;">Expected vs Actual Response (${sourceLabel})</h4>
                 <div class="response-compare">
                     <div class="response-box">
                         <h4>📋 Expected Result</h4>
