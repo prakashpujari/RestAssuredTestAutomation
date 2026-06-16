@@ -255,7 +255,8 @@
             const pct = Math.round((passed / total) * 100);
             const bar = document.getElementById('progressFill');
             bar.style.width = pct + '%';
-            bar.className = 'progress-fill ' + (pct === 100 ? 'progress-pass' : pct > 50 ? 'progress-pass' : 'progress-fail');
+            // Green only if ALL tests passed, otherwise red
+            bar.className = 'progress-fill ' + (passed === total ? 'progress-pass' : 'progress-fail');
         }
 
         function displayResults(results, endpoint, method, requestBody, expectedPath) {
@@ -299,15 +300,19 @@
                 <p><small>Expected file path: ${expectedPath || '(not specified)'}</small></p>
                 <div class="response-compare">
                     <div class="response-box">
+                        <h4>📋 Expected Result</h4>
+                        <pre>${expectedPath ? 'File: ' + expectedPath : 'Status code match expected range'}</pre>
+                    </div>
+                    <div class="response-box">
                         <h4>📤 Actual Response</h4>
                         <pre>${JSON.stringify(results[0]?.actual || {}, null, 2)}</pre>
                     </div>
-                    <div class="response-box">
-                        <h4>✅ Match Result</h4>
-                        <pre class="${results[0]?.expectedStatus ? 'match' : 'mismatch'}">
+                </div>
+                <div class="response-box" style="margin-top:10px;">
+                    <h4>✅ Match Result</h4>
+                    <pre class="${results[0]?.expectedStatus ? 'match' : 'mismatch'}">
 ${results[0]?.expectedStatus ? '✅ PASS - Response matches expected' : '❌ FAIL - Response does not match expected'}
-                        </pre>
-                    </div>
+                    </pre>
                 </div>
             `;
         }
