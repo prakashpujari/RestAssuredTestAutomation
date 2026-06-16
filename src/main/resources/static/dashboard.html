@@ -29,6 +29,11 @@
         .fail { color: #dc3545; }
         .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
         .form-row > * { flex: 1; }
+        .auth-section { background: #f0f8ff; padding: 15px; border-radius: 6px; margin-top: 10px; }
+        .test-type-badge { font-size: 0.8em; padding: 2px 8px; border-radius: 10px; margin-left: 10px; }
+        .positive { background: #d4edda; color: #155724; }
+        .negative { background: #f8d7da; color: #721c24; }
+        .policy { background: #fff3cd; color: #856404; }
     </style>
 </head>
 <body>
@@ -45,7 +50,7 @@
 
             <div class="form-group">
                 <label>HTTP Method</label>
-                <select id="method">
+                <select id="method" onchange="toggleBodyField()">
                     <option value="POST">POST</option>
                     <option value="GET">GET</option>
                     <option value="PUT">PUT</option>
@@ -63,7 +68,7 @@
                 </select>
             </div>
 
-            <div id="basicAuthFields" style="display:none;">
+            <div id="basicAuthFields" class="auth-section" style="display:none;">
                 <div class="form-row">
                     <div class="form-group">
                         <label>Client ID</label>
@@ -76,7 +81,39 @@
                 </div>
             </div>
 
-            <div class="form-group">
+            <div id="oauth2Fields" class="auth-section" style="display:none;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Token URL</label>
+                        <input type="text" id="tokenUrl" placeholder="https://auth.example.com/oauth/token">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Client ID</label>
+                        <input type="text" id="oauthClientId" placeholder="your-client-id">
+                    </div>
+                    <div class="form-group">
+                        <label>Client Secret</label>
+                        <input type="password" id="oauthClientSecret" placeholder="your-client-secret">
+                    </div>
+                </div>
+            </div>
+
+            <div id="apiKeyFields" class="auth-section" style="display:none;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Header Name</label>
+                        <input type="text" id="apiKeyHeader" placeholder="X-API-Key">
+                    </div>
+                    <div class="form-group">
+                        <label>API Key Value</label>
+                        <input type="text" id="apiKeyValue" placeholder="your-api-key">
+                    </div>
+                </div>
+            </div>
+
+            <div id="bodyField" class="form-group" style="display:none;">
                 <label>Request Body (JSON)</label>
                 <textarea id="requestBody">{"name": "Test Product", "price": 99.99}</textarea>
             </div>
@@ -94,19 +131,23 @@
     </div>
 
     <script>
+        function toggleBodyField() {
+            const method = document.getElementById('method').value;
+            const bodyField = document.getElementById('bodyField');
+            bodyField.style.display = (method === 'POST' || method === 'PUT') ? 'block' : 'none';
+        }
+
         function toggleAuthFields() {
             const authType = document.getElementById('authType').value;
-            const basicAuthFields = document.getElementById('basicAuthFields');
-            basicAuthFields.style.display = authType === 'BASIC_AUTH' ? 'block' : 'none';
+            document.getElementById('basicAuthFields').style.display = authType === 'BASIC_AUTH' ? 'block' : 'none';
+            document.getElementById('oauth2Fields').style.display = authType === 'OAUTH2' ? 'block' : 'none';
+            document.getElementById('apiKeyFields').style.display = authType === 'API_KEY' ? 'block' : 'none';
         }
 
         async function runTests() {
             const endpoint = document.getElementById('endpoint').value;
             const method = document.getElementById('method').value;
             const authType = document.getElementById('authType').value;
-            const clientId = document.getElementById('clientId').value;
-            const clientSecret = document.getElementById('clientSecret').value;
-            const requestBody = document.getElementById('requestBody').value;
 
             if (!endpoint) {
                 alert('Please enter endpoint URL');
@@ -116,17 +157,37 @@
             document.getElementById('loading').style.display = 'block';
             document.getElementById('resultSection').style.display = 'none';
 
+            // Collect auth credentials
+            let clientId = '', clientSecret = '', tokenUrl = '', apiKeyHeader = '', apiKeyValue = '';
+            if (authType === 'BASIC_AUTH') {
+                clientId = document.getElementById('clientId').value;
+                clientSecret = document.getElementById('clientSecret').value;
+            } else if (authType === 'OAUTH2') {
+                tokenUrl = document.getElementById('tokenUrl').value;
+                clientId = document.getElementById('oauthClientId').value;
+                clientSecret = document.getElementById('oauthClientSecret').value;
+            } else if (authType === 'API_KEY') {
+                apiKeyHeader = document.getElementById('apiKeyHeader').value;
+                apiKeyValue = document.getElementById('apiKeyValue').value;
+            }
+
+            const requestBody = document.getElementById('requestBody').value;
+
             try {
-                // Test 1: Valid request
-                const response1 = await testEndpoint(endpoint, method, authType, clientId, clientSecret, requestBody);
+                // Run all test types
+                const tests = [
+                    { name: 'Positive Test', type: 'positive', expectedStatus: [200, 201, 204] },
+                    { name: 'Negative Test', type: 'negative', expectedStatus: [400, 404] },
+                    { name: 'Policy Test', type: 'policy', expectedStatus: [401, 403] }
+                ];
 
-                // Test 2: Invalid request
-                const response2 = await testEndpoint(endpoint, method, authType, clientId, clientSecret, '{}');
+                const results = [];
+                for (const test of tests) {
+                    const result = await runSingleTest(endpoint, method, authType, clientId, clientSecret, tokenUrl, apiKeyHeader, apiKeyValue, requestBody, test);
+                    result.testType = test.type;
+                    results.push(result);
+                }
 
-                // Test 3: Without auth (if applicable)
-                const response3 = await testEndpoint(endpoint, method, 'NONE', '', '', requestBody);
-
-                const results = [response1, response2, response3];
                 displayResults(results);
             } catch (err) {
                 alert('Error: ' + err.message);
@@ -135,13 +196,13 @@
             }
         }
 
-        async function testEndpoint(endpoint, method, authType, clientId, clientSecret, body) {
+        async function runSingleTest(endpoint, method, authType, clientId, clientSecret, tokenUrl, apiKeyHeader, apiKeyValue, body, testConfig) {
             const headers = { 'Content-Type': 'application/json' };
 
             if (authType === 'BASIC_AUTH' && clientId && clientSecret) {
                 headers['Authorization'] = 'Basic ' + btoa(clientId + ':' + clientSecret);
-            } else if (authType === 'API_KEY' && clientId && clientSecret) {
-                headers[clientId] = clientSecret;
+            } else if (authType === 'API_KEY' && apiKeyHeader && apiKeyValue) {
+                headers[apiKeyHeader] = apiKeyValue;
             }
 
             const options = {
@@ -149,34 +210,42 @@
                 headers: headers
             };
 
-            if (body && method !== 'GET') {
+            if ((method === 'POST' || method === 'PUT') && body) {
                 options.body = body;
             }
 
             const start = performance.now();
             const response = await fetch(endpoint, options);
             const duration = performance.now() - start;
-            const data = await response.json().catch(() => ({}));
+
+            let responseData = '';
+            try {
+                responseData = await response.json();
+            } catch (e) {
+                responseData = { message: 'Non-JSON response' };
+            }
+
+            const passed = testConfig.expectedStatus.includes(response.status);
 
             return {
                 endpoint: endpoint,
                 method: method,
                 statusCode: response.status,
-                response: JSON.stringify(data).substring(0, 200),
+                response: JSON.stringify(responseData).substring(0, 200),
                 duration: Math.round(duration) + 'ms',
-                status: response.status >= 200 && response.status < 300 ? 'PASS' : 'FAIL'
+                status: passed ? 'PASS' : 'FAIL',
+                testType: testConfig.type
             };
         }
 
         function displayResults(results) {
             const resultSection = document.getElementById('resultSection');
-            const resultSummary = document.getElementById('resultSummary');
             const resultsTable = document.getElementById('resultsTable');
 
             resultSection.style.display = 'block';
 
             const passed = results.filter(r => r.status === 'PASS').length;
-            resultSummary.innerHTML = `<p class="success">✅ ${passed}/${results.length} tests passed</p>`;
+            const typeColors = { positive: 'positive', negative: 'negative', policy: 'policy' };
 
             resultsTable.innerHTML = `
                 <thead>
@@ -186,6 +255,7 @@
                         <th>Status</th>
                         <th>Code</th>
                         <th>Duration</th>
+                        <th>Type</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -196,6 +266,7 @@
                             <td class="${r.status === 'PASS' ? 'pass' : 'fail'}">${r.status}</td>
                             <td>${r.statusCode}</td>
                             <td>${r.duration}</td>
+                            <td><span class="test-type-badge ${typeColors[r.testType] || ''}">${r.testType.toUpperCase()}</span></td>
                         </tr>
                     `).join('')}
                 </tbody>
