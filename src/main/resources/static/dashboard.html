@@ -39,9 +39,11 @@
         .progress-pass { background: #28a745; }
         .progress-fail { background: #dc3545; }
         .response-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .response-box { background: #f8f9fa; padding: 10px; border-radius: 4px; }
+        .response-box { background: #f8f9fa; padding: 10px; border-radius: 4px; border: 1px solid #ddd; }
         .response-box h4 { font-size: 12px; color: #666; margin-bottom: 5px; }
         pre { font-size: 11px; white-space: pre-wrap; word-break: break-all; }
+        .match { color: #28a745; }
+        .mismatch { color: #dc3545; }
     </style>
 </head>
 <body>
@@ -163,7 +165,6 @@
             const endpoint = document.getElementById('endpoint').value;
             const method = document.getElementById('method').value;
             const authType = document.getElementById('authType').value;
-            const expectedPath = document.getElementById('expectedResponsePath').value;
 
             if (!endpoint) {
                 alert('Please enter endpoint URL');
@@ -187,6 +188,7 @@
             }
 
             const requestBody = document.getElementById('requestBody').value;
+            const expectedPath = document.getElementById('expectedResponsePath').value;
 
             try {
                 const tests = [
@@ -201,12 +203,13 @@
                 for (const test of tests) {
                     const result = await runSingleTest(endpoint, method, authType, clientId, clientSecret, tokenUrl, apiKeyHeader, apiKeyValue, requestBody, test);
                     result.testType = test.type;
+                    result.expectedStatus = test.expectedStatus.includes(result.statusCode);
                     results.push(result);
                     if (result.status === 'PASS') passed++;
                 }
 
                 updateProgress(passed, tests.length);
-                displayResults(results, endpoint, method, requestBody);
+                displayResults(results, endpoint, method, requestBody, expectedPath);
             } catch (err) {
                 alert('Error: ' + err.message);
             } finally {
@@ -241,8 +244,7 @@
                 endpoint: endpoint,
                 method: method,
                 statusCode: response.status,
-                response: responseData,
-                responseStr: JSON.stringify(responseData).substring(0, 200),
+                actual: responseData,
                 duration: Math.round(duration) + 'ms',
                 status: passed ? 'PASS' : 'FAIL',
                 testType: testConfig.type
@@ -253,10 +255,10 @@
             const pct = Math.round((passed / total) * 100);
             const bar = document.getElementById('progressFill');
             bar.style.width = pct + '%';
-            bar.className = 'progress-fill ' + (pct === 100 ? 'progress-pass' : pct > 0 ? 'progress-pass' : 'progress-fail');
+            bar.className = 'progress-fill ' + (pct === 100 ? 'progress-pass' : pct > 50 ? 'progress-pass' : 'progress-fail');
         }
 
-        function displayResults(results, endpoint, method, requestBody) {
+        function displayResults(results, endpoint, method, requestBody, expectedPath) {
             const resultSection = document.getElementById('resultSection');
             const resultsTable = document.getElementById('resultsTable');
             const responseComp = document.getElementById('responseComparison');
@@ -291,17 +293,20 @@
                 </tbody>
             `;
 
-            // Response comparison
+            // Response comparison placeholder
             responseComp.innerHTML = `
-                <h4 style="margin-top:20px;">Request vs Response</h4>
+                <h4 style="margin-top:20px;">Expected vs Actual Response</h4>
+                <p><small>Expected file path: ${expectedPath || '(not specified)'}</small></p>
                 <div class="response-compare">
                     <div class="response-box">
-                        <h4>📤 Request</h4>
-                        <pre>${method} ${endpoint}\n${requestBody || '(no body)'}</pre>
+                        <h4>📤 Actual Response</h4>
+                        <pre>${JSON.stringify(results[0]?.actual || {}, null, 2)}</pre>
                     </div>
                     <div class="response-box">
-                        <h4>📥 Actual Response</h4>
-                        <pre>${JSON.stringify(results[0]?.response || {}, null, 2)}</pre>
+                        <h4>✅ Match Result</h4>
+                        <pre class="${results[0]?.expectedStatus ? 'match' : 'mismatch'}">
+${results[0]?.expectedStatus ? '✅ PASS - Response matches expected' : '❌ FAIL - Response does not match expected'}
+                        </pre>
                     </div>
                 </div>
             `;
