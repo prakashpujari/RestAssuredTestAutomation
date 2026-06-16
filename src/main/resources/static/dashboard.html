@@ -129,8 +129,8 @@
             </div>
 
             <div class="form-group">
-                <label>Expected Response File Path (optional)</label>
-                <input type="text" id="expectedResponsePath" placeholder="target/expected-response.json">
+                <label>Expected Response (optional - paste JSON for comparison)</label>
+                <textarea id="expectedResponse" placeholder='{"id": 1, "name": "Test"}' style="min-height: 60px;"></textarea>
             </div>
 
             <button class="btn" onclick="runTests()">▶ Generate & Run Tests</button>
@@ -188,7 +188,6 @@
             }
 
             const requestBody = document.getElementById('requestBody').value;
-            const expectedPath = document.getElementById('expectedResponsePath').value;
 
             try {
                 const tests = [
@@ -209,7 +208,7 @@
                 }
 
                 updateProgress(passed, tests.length);
-                displayResults(results, endpoint, method, requestBody, expectedPath);
+                displayResults(results, endpoint, method, requestBody);
             } catch (err) {
                 alert('Error: ' + err.message);
             } finally {
@@ -259,7 +258,7 @@
             bar.className = 'progress-fill ' + (passed === total ? 'progress-pass' : 'progress-fail');
         }
 
-        function displayResults(results, endpoint, method, requestBody, expectedPath) {
+        function displayResults(results, endpoint, method, requestBody) {
             const resultSection = document.getElementById('resultSection');
             const resultsTable = document.getElementById('resultsTable');
             const responseComp = document.getElementById('responseComparison');
@@ -294,24 +293,33 @@
                 </tbody>
             `;
 
-            // Response comparison placeholder
+            // Get expected response from textarea
+            const expectedStr = document.getElementById('expectedResponse').value.trim();
+            let expectedObj = {};
+            try { expectedObj = expectedStr ? JSON.parse(expectedStr) : {}; } catch (e) {}
+
+            // Compare actual vs expected
+            const actualStr = JSON.stringify(results[0]?.actual || {});
+            const expectedActualStr = JSON.stringify(expectedObj);
+            const isMatch = actualStr === expectedActualStr || Object.keys(expectedObj).length === 0;
+
+            // Response comparison
             responseComp.innerHTML = `
                 <h4 style="margin-top:20px;">Expected vs Actual Response</h4>
-                <p><small>Expected file path: ${expectedPath || '(not specified)'}</small></p>
                 <div class="response-compare">
                     <div class="response-box">
                         <h4>📋 Expected Result</h4>
-                        <pre>${expectedPath ? 'File: ' + expectedPath : 'Status code match expected range'}</pre>
+                        <pre>${expectedActualStr || '(not specified)'}</pre>
                     </div>
                     <div class="response-box">
                         <h4>📤 Actual Response</h4>
-                        <pre>${JSON.stringify(results[0]?.actual || {}, null, 2)}</pre>
+                        <pre>${actualStr}</pre>
                     </div>
                 </div>
                 <div class="response-box" style="margin-top:10px;">
                     <h4>✅ Match Result</h4>
-                    <pre class="${results[0]?.expectedStatus ? 'match' : 'mismatch'}">
-${results[0]?.expectedStatus ? '✅ PASS - Response matches expected' : '❌ FAIL - Response does not match expected'}
+                    <pre class="${isMatch ? 'match' : 'mismatch'}">
+${isMatch ? '✅ PASS - Response matches expected' : '❌ FAIL - Response does not match expected'}
                     </pre>
                 </div>
             `;
